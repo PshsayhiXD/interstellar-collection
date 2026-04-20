@@ -153,3 +153,5 @@ function showUpdateBanner(release, newVer, oldVer) {
     `;
   document.body.appendChild(banner);
 }
+
+module.exports = { checkForUpdates };
