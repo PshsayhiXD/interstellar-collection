@@ -50,7 +50,9 @@ class LoaderUI {
     this._updateUI();
     this._loadIcons();
     this._injectOpenButton();
-    this._checkForUpdates();
+    
+    const { checkForUpdates } = require('./updateChecker');
+    checkForUpdates('pshsayhi-mod-loader');
   }
 
   async _loadIcons() {
@@ -70,50 +72,7 @@ class LoaderUI {
     }
   }
 
-  async _checkForUpdates() {
-    try {
-      let currentVersion = "1.0.0";
-      try {
-        const manifest = require("./interstellar.json");
-        if (manifest && manifest.version) currentVersion = manifest.version;
-      } catch(ex) {}
 
-      const response = await fetch("https://api.github.com/repos/PshsayhiXD/interstellar-collection/releases/latest");
-      if (!response.ok) return;
-      const data = await response.json();
-      const latestVersion = data.tag_name.replace(/^v/, '');
-      
-      if (latestVersion !== currentVersion) {
-        const banner = this.container.querySelector("#p-update-banner");
-        const vSpan = this.container.querySelector("#p-update-version");
-        const log = this.container.querySelector("#p-changelog");
-        const btn = this.container.querySelector("#p-update-download");
-        
-        vSpan.textContent = latestVersion;
-        log.innerHTML = data.body ? data.body.replace(/\\n/g, '<br>').replace(/## (.*?)\\<br\\>/g, '<strong>$1</strong><br>') : 'No changelog provided.';
-        banner.style.display = "flex";
-        
-        btn.addEventListener("click", () => {
-          const asset = data.assets && data.assets.find(a => a.name.endsWith(".zip"));
-          const downloadUrl = asset ? asset.browser_download_url : data.html_url;
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
-          btn.style.opacity = "0.7";
-          
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = downloadUrl;
-          if (asset) a.download = asset.name;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => a.remove(), 1000);
-          
-          setTimeout(() => { btn.innerHTML = '<i class="fas fa-check"></i> Downloaded!'; }, 1500);
-        });
-      }
-    } catch (e) {
-      console.warn("[Pshsayhi's Loader] Failed to check for updates:", e.message);
-    }
-  }
 
   _setupEvents() {
     this.container.querySelector("#p-sidebar").addEventListener("click", e => {

@@ -8,7 +8,7 @@
     "oneko":                "node build.js oneko",
     "straight":             "node build.js straight",
     "super-gay":            "node build.js \"super gay\"",
-    "test-debug":           "node build.js \"test debug\""
+    "release":              "node release.js"
   },
   "devDependencies": {
     "archiver": "^7.0.1"
