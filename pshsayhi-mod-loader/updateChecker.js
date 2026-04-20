@@ -1,11 +1,10 @@
-export async function checkForUpdates(
+async function checkForUpdates(
   modSlug,
   repoUser = "PshsayhiXD",
   repoName = "interstellar-collection",
 ) {
   try {
-    // 1. Read local interstellar.json
-    let currentVersion = "1.0.0";
+    let currentVersion;
     try {
       const res = await fetch("./interstellar.json");
       if (res.ok) {
@@ -14,29 +13,21 @@ export async function checkForUpdates(
       }
     } catch (e) {
       console.warn(
-        `[Updater] Could not load interstellar.json, defaulting to ${currentVersion}`,
+        `[Updater] Could not load interstellar.json.`,
       );
     }
-
-    // 2. Fetch releases from GitHub API
     const releasesRes = await fetch(
       `https://api.github.com/repos/${repoUser}/${repoName}/releases`,
     );
     if (!releasesRes.ok) throw new Error("Failed to fetch releases");
-
     const releases = await releasesRes.json();
     const prefix = `${modSlug}-v`;
-
-    // Filter releases for this mod
     const modReleases = releases.filter(
       (r) => r.tag_name.startsWith(prefix) && !r.draft && !r.prerelease,
     );
     if (modReleases.length === 0) return;
-
-    // Sort just in case, though API usually sorts by date
     const latestRelease = modReleases[0];
     const remoteVersion = latestRelease.tag_name.replace(prefix, "");
-
     if (isNewerVersion(currentVersion, remoteVersion)) {
       showUpdateBanner(latestRelease, remoteVersion, currentVersion);
     }
@@ -44,7 +35,6 @@ export async function checkForUpdates(
     console.error("[Updater] Update check failed:", error);
   }
 }
-
 function isNewerVersion(current, remote) {
   const curParts = current.split(".").map(Number);
   const remParts = remote.split(".").map(Number);
@@ -56,7 +46,6 @@ function isNewerVersion(current, remote) {
   }
   return false;
 }
-
 function parseMarkdown(md) {
   if (!md) return "";
   return md
@@ -68,7 +57,6 @@ function parseMarkdown(md) {
     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>')
     .replace(/\n/g, "<br>");
 }
-
 function showUpdateBanner(release, newVer, oldVer) {
   if (document.getElementById("pshsayhi-update-banner")) return;
   const banner = document.createElement("div");
@@ -149,10 +137,7 @@ function showUpdateBanner(release, newVer, oldVer) {
 
   const asset = release.assets.find((a) => a.name.endsWith(".zip"));
   let downloadHtml = "";
-  if (asset) {
-    downloadHtml = `<a href="${asset.browser_download_url}" class="pshsayhi-update-btn">Download .zip Update</a>`;
-  }
-
+  if (asset) downloadHtml = `<a href="${asset.browser_download_url}" class="pshsayhi-update-btn">Download .zip Update</a>`;
   banner.innerHTML = `
         <div class="pshsayhi-update-content">
             <span class="pshsayhi-update-close" onclick="this.parentElement.parentElement.remove()">&times;</span>
@@ -166,6 +151,5 @@ function showUpdateBanner(release, newVer, oldVer) {
             ${downloadHtml}
         </div>
     `;
-
   document.body.appendChild(banner);
 }
