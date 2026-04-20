@@ -1,0 +1,9 @@
+{
+    "name": "oneko",
+    "id": "pshsayhi.oneko",
+    "creator": "pshsayhi",
+    "description": "meow",
+    "scripting": "commonjs",
+    "entrypoint": "./oneko.js",
+    "icon": "./oneko.jpg"
+}

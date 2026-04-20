@@ -1,0 +1,9 @@
+{
+    "name": "pshsayhi's mod loader",
+    "id": "pshsayhi.loader",
+    "creator": "pshsayhi",
+    "description": "Premium mod manager for pshsayhi's interstellar mods.",
+    "version": "1.1.0",
+    "scripting": "commonjs",
+    "entrypoint": "./loader.js"
+}

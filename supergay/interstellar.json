@@ -1,0 +1,9 @@
+{
+    "name": "rainbow",
+    "id": "pshsayhi.rainbow",
+    "creator": "pshsayhi",
+    "description": "lgbt looking ahh",
+    "scripting": "commonjs",
+    "entrypoint": "./rainbow.js",
+    "icon": "./rainbow.webp"
+}

@@ -1,0 +1,9 @@
+{
+    "name": "monochrome v2",
+    "id": "pshsayhi.monochromev2",
+    "creator": "pshsayhi",
+    "description": "straight up straight ahh mod",
+    "scripting": "commonjs",
+    "entrypoint": "./monochrome.js",
+    "icon": "./straight.png"
+}
