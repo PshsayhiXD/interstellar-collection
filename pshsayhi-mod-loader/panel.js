@@ -5,7 +5,7 @@ function buildPanel(sections, configState) {
     <div id="p-titlebar">
       <div class="p-brand">
         <div class="p-logo"><i class="fas fa-layer-group"></i></div>
-        <span class="p-name">Pshsayhi Mods</span>
+        <span class="p-name">Mod Manager</span>
         <span class="p-version">v2</span>
       </div>
       <div style="display:flex;gap:4px;align-items:center;">

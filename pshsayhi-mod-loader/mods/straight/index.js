@@ -19,8 +19,8 @@ class StraightMod {
     this.index = (this.index + 1) % this.colorParts.length;
     const p = this.colorParts[this.index];
 
-    this.cycle = (this.cycle || 0) + 0.05;
-    const intensity = Math.floor(((Math.sin(this.cycle) + 1) / 2) * 255);
+    const time = Date.now() / 25;
+    const intensity = Math.round(Math.sin(0.3 * time) * 127 + 128);
     const color = (intensity << 16) | (intensity << 8) | intensity;
 
     this.appearance[p] = color;

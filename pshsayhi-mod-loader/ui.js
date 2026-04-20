@@ -50,9 +50,6 @@ class LoaderUI {
     this._updateUI();
     this._loadIcons();
     this._injectOpenButton();
-    
-    const { checkForUpdates } = require('./updateChecker');
-    checkForUpdates('pshsayhi-mod-loader');
   }
 
   async _loadIcons() {
@@ -123,21 +120,15 @@ class LoaderUI {
           val = input.checked;
         } else if (input.type === "range") {
           val = parseInt(input.value);
-          // Update display value
           const display = this.container.querySelector(`.p-config-value[data-mod="${mod}"][data-cfg="${cfg}"]`);
           if (display) {
-            // Re-fetch mod config for unit (or just assume existing content's structure)
             const unit = display.textContent.replace(/[0-9.-]/g, '');
             display.textContent = val + unit;
           }
-        } else {
-          val = input.value;
-        }
-
+        } else val = input.value;
         this.configState[mod][cfg] = val;
         this.onModeChange("config", { id: mod, key: cfg, value: val });
       };
-      
       const eventType = (input.type === "checkbox" || input.type === "color" || input.type === "date") ? "change" : "input";
       input.addEventListener(eventType, update);
     });
