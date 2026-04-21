@@ -5,18 +5,24 @@ function buildPanel(sections, configState) {
     <div id="p-titlebar">
       <div class="p-brand">
         <div class="p-logo"><i class="fas fa-layer-group"></i></div>
-        <span class="p-name">Pshsayhi Mods</span>
+        <span class="p-name">Mods Manager</span>
         <span class="p-version">v2</span>
       </div>
       <div style="display:flex;gap:4px;align-items:center;">
         <button id="p-hide-btn"     class="p-titlebar-btn" title="Ghost mode"><i class="fas fa-eye-slash"></i></button>
-        <button id="p-collapse-btn" class="p-titlebar-btn" title="Collapse"><i class="fas fa-chevron-up"></i></button>
+        <button id="p-collapse-btn" type="button" class="p-titlebar-btn" title="Collapse" aria-expanded="true"><i class="fas fa-chevron-up"></i></button>
         <button id="p-close-btn"    class="p-titlebar-btn" title="Close"><i class="fas fa-xmark"></i></button>
       </div>
     </div>
     <div id="p-body">
       <nav id="p-sidebar"></nav>
-      <div id="p-content"></div>
+      <div id="p-main-col">
+        <div class="p-toolbar">
+          <input id="p-search" type="search" placeholder="Filter mods…" autocomplete="off" />
+          <button id="p-reset-config" type="button" title="Reset all mod options to defaults">Reset</button>
+        </div>
+        <div id="p-content"></div>
+      </div>
     </div>
     <div id="p-update-banner" style="display:none;">
       <div class="p-banner-header">

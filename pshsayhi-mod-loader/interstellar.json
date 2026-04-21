@@ -3,7 +3,7 @@
     "id": "pshsayhi.loader",
     "creator": "pshsayhi",
     "description": "Custom Mod Manager for interstellar mods.",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "scripting": "commonjs",
     "entrypoint": "./loader.js"
 }

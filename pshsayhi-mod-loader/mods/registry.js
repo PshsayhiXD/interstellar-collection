@@ -10,6 +10,10 @@ const MODS = [
   {
     metadata: require("./oneko/metadata").default,
     module:   require("./oneko/index")
+  },
+  {
+    metadata: require("./sparktrail/metadata").default,
+    module:   require("./sparktrail/index")
   }
 ];
 

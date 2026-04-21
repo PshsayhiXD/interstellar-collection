@@ -45,7 +45,7 @@ function getSections() {
     outfit.mods.push({
       id:    "off",
       label: "Disable Styles",
-      description: "Reverts to default appearance.",
+      description: "Reverts to default outfit.",
       icon:  "fa-ban",
       config: []
     });

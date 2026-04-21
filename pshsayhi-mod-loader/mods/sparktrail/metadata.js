@@ -1,0 +1,26 @@
+exports.default = {
+  id: "sparktrail",
+  label: "Spark Trail",
+  description: "Soft glowing dots along your cursor.",
+  author: "PshsayhiXD",
+  version: "1.0.0",
+  homeUrl: "https://github.com/PshsayhiXD/interstellar-collection",
+  icon: "fa-star",
+  entryPoint: "index.js",
+  type: "toggle",
+  section: "extras",
+  licenseName: "MIT",
+  licensePath: "LICENSE",
+  config: [
+    {
+      key: "speed",
+      label: "Spawn gap (ms)",
+      type: "range",
+      min: 16,
+      max: 160,
+      step: 4,
+      unit: "ms",
+      default: 48,
+    },
+  ],
+};
