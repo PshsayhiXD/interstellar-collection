@@ -4,7 +4,7 @@ const { MODS } = require("./mods/registry");
 const { getSections } = require("./sections");
 const imported = require("./importedMods");
 
-const _VERSION = "1.1.5";
+const _VERSION = "1.1.6";
 
 async function checkForUpdates(ui, modSlug, repoUser = "PshsayhiXD", repoName = "interstellar-collection") {
   try {

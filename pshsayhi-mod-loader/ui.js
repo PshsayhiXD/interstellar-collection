@@ -206,14 +206,14 @@ class LoaderUI {
         '<i class="fas fa-triangle-exclamation"></i> Update available';
     if (versionEl) versionEl.textContent = newVer || "";
     if (changelogEl) {
-      const header = `<div style="margin-bottom:8px;font-weight:800;color:rgba(255,255,255,0.92);">${oldVer || "0.0.0"} → ${newVer || "0.0.0"}</div>`;
+      const header = `<div style="margin-bottom:8px;font-size:14px;font-weight:800;color:rgba(255,255,255,0.92);">${oldVer || "0.0.0"} → ${newVer || "0.0.0"}</div>`;
       changelogEl.innerHTML =
         header + this._parseUpdateMarkdown(release?.body || "");
     }
     if (downloadBtn) {
       downloadBtn.style.display = asset ? "inline-flex" : "none";
       downloadBtn.textContent = asset
-        ? "Download .zip Update"
+        ? "Download .zip"
         : "No .zip asset";
       downloadBtn.onclick = asset
         ? () => window.open(asset.browser_download_url, "_blank")

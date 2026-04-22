@@ -844,7 +844,7 @@ const STYLES = `
     margin-bottom: 6px;
   }
   .p-banner-title {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
     color: #a7f3d0;
     display: flex;
