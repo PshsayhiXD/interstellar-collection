@@ -51,24 +51,30 @@ const validate = (cmds) => {
     `git push origin ${tag}`,
   ];
   const optional = [
-    `gh release create ${tag} --title "${modSlug} v${version}" --notes "${reason ?? "Auto release."}`
+    `gh release create ${tag} ${modSlug}.zip --title "${modSlug} v${version}" --notes "${reason ?? "Auto release."}" || gh release upload ${tag} ${modSlug}.zip --clobber`
   ];
   validate(cmds);
   console.log("\nGit Actions:\n");
   cmds.forEach((c) => console.log(` * ${c}`));
   console.log("\n---------------------------------");
   if (dryRun) return console.log("\nDry run activated.");
-  if (!(await confirm('Type "yes" or "confirm" to execute: '))) return console.log("\nCancelled.");
-  try {
-    console.log("\nExecuting...\n");
-    runCommands(cmds);
-    console.log("\nRelease completed!");
-  } catch (e) {
-    console.error("\nExecution Failed!");
-    console.error(`\nCommand: ${e.cmd}`);
-    console.error(e.stderr ? e.stderr.toString().trim() : e.message);
-    process.exit(1);
+  let executed = false;
+  if (await confirm('Type "yes" or "confirm" to execute: ')) {
+    try {
+      console.log("\nExecuting...\n");
+      runCommands(cmds);
+      console.log("\nRelease completed!");
+      executed = true;
+    } catch (e) {
+      console.error("\nExecution Failed!");
+      console.error(`\nCommand: ${e.cmd}`);
+      console.error(e.stderr ? e.stderr.toString().trim() : e.message);
+      process.exit(1);
+    }
+  } else {
+    console.log("\nSkipped git step.");
   }
+  if (!executed) return console.log("\nSkipping optional (no git step).");
   if (!(await confirm('Run optional release step? ')))
     return console.log("\nSkipped optional.");
   try {
