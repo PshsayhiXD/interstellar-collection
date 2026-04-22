@@ -6,14 +6,15 @@ const parseArgs = () => {
   const modSlug = a.find((v) => !v.startsWith("--"));
   const i = a.indexOf(modSlug) + 1;
   const version = a[i] && !a[i].startsWith("--") ? a[i] : null;
-  return { modSlug, version, dryRun: a.includes("--dry-run") };
+  const reason = a[i + 1] && !a[i + 1].startsWith("--") ? a[i + 1] : null;
+  return { modSlug, version, reason, dryRun: a.includes("--dry-run") };
 };
 
 const confirm = (msg) => new Promise((res) => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   rl.question(msg, (a) => {
     rl.close();
-    res(["yes", "confirm"].includes(a.trim().toLowerCase()));
+    res(["yes", "y", "confirm"].includes(a.trim().toLowerCase()));
   });
 });
 
