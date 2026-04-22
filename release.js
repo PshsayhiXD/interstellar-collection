@@ -58,8 +58,7 @@ const validate = (cmds) => {
   cmds.forEach((c) => console.log(` * ${c}`));
   console.log("\n---------------------------------");
   if (dryRun) return console.log("\nDry run activated.");
-  if (await confirm('Type "yes" or "confirm" to execute: '))
-    return console.log("\nCancelled.");
+  if (!(await confirm('Type "yes" or "confirm" to execute: '))) return console.log("\nCancelled.");
   try {
     console.log("\nExecuting...\n");
     runCommands(cmds);
