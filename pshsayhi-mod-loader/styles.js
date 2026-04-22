@@ -4,7 +4,6 @@ const STYLES = `
     initial-value: 0deg;
     inherits: false;
   }
-
   @keyframes pastelSpin {
     to { --angle: 360deg; }
   }
@@ -27,13 +26,24 @@ const STYLES = `
     overflow: hidden;
     isolation: isolate;
     z-index: 999999;
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
     font-size: 13px;
     color: rgba(255,255,255,0.9);
-    background: transparent;
     border: 2px solid transparent;
     box-shadow: 0 16px 40px rgba(0,0,0,0.5);
     user-select: none;
+  }
+  #pshsayhi-loader[data-panel-surface="glass"] {
+    background:
+      linear-gradient(
+        165deg,
+        rgba(15, 12, 28, 0.55),
+        rgba(22, 18, 42, 0.65)
+      ) padding-box;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+  }
+  #pshsayhi-loader[data-panel-surface="background"] {
     background:
       linear-gradient(
         165deg,
@@ -56,8 +66,7 @@ const STYLES = `
     background-clip: padding-box, border-box;
     animation: pastelSpin 5.5s linear infinite;
   }
-
-  #pshsayhi-loader::after {
+  #pshsayhi-loader[data-panel-surface="background"]::after {
     content: "";
     position: absolute;
     inset: 2px;
@@ -68,7 +77,6 @@ const STYLES = `
     -webkit-backdrop-filter: blur(28px) saturate(180%);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
   }
-
   #pshsayhi-loader > * {
     position: relative;
     z-index: 1;
@@ -216,6 +224,40 @@ const STYLES = `
     padding: 8px 12px 6px;
     border-bottom: 1px solid rgba(255,255,255,0.05);
   }
+  .p-toolbar-group{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    flex-shrink:0;
+  }
+  .p-tool-btn{
+    width:26px;
+    height:26px;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.55);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: transform 0.12s, background 0.15s, color 0.15s, border-color 0.15s;
+    padding:0;
+    flex-shrink:0;
+  }
+  .p-tool-btn:hover{
+    background: rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.85);
+    border-color: rgba(255,255,255,0.14);
+  }
+  .p-tool-btn:active{
+    transform: translateY(1px) scale(0.98);
+  }
+  #pshsayhi-loader.p-dev #p-dev-toggle{
+    background: rgba(167,139,250,0.18);
+    border-color: rgba(167,139,250,0.35);
+    color: #c4b5fd;
+  }
   #p-search {
     flex: 1;
     min-width: 0;
@@ -297,6 +339,55 @@ const STYLES = `
     flex-direction: column;
     gap: 0;
   }
+
+  .p-stats {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:6px 12px 8px;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+    background:rgba(255,255,255,0.02);
+    flex-shrink:0;
+    min-height:26px;
+    transition:background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .p-stats:hover {
+    background:rgba(255,255,255,0.05);
+    border-bottom:1px solid rgba(255,255,255,0.1);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 0 12px rgba(180,140,255,0.08);
+  }
+  .p-stats-left{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-shrink:0;
+  }
+  .p-stat{
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 3px 7px;
+    border-radius: 999px;
+  }
+  .p-feedback{
+    font-size: 10px;
+    color: rgba(255,255,255,0.55);
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+    flex:1;
+    text-align:right;
+    min-width: 0;
+  }
+  .p-feedback.p-ok{ color: rgba(167,243,208,0.95); }
+  .p-feedback.p-err{ color: rgba(252,165,165,0.95); }
   #p-content::-webkit-scrollbar { width: 4px; }
   #p-content::-webkit-scrollbar-track { background: transparent; }
   #p-content::-webkit-scrollbar-thumb {
@@ -353,6 +444,9 @@ const STYLES = `
     font-weight: 600;
     transition: background 0.12s;
   }
+  .p-mod-header:active{
+    transform: translateY(1px);
+  }
   .p-mod-header:hover { background: rgba(255,255,255,0.04); }
 
   .p-mod-icon {
@@ -392,6 +486,157 @@ const STYLES = `
     min-width: 0;
     padding-right: 8px;
     text-align: left;
+  }
+
+  .p-greet{
+    margin-top:auto;
+    padding:10px 8px 6px;
+    font-size:10px;
+    font-weight:700;
+    color:rgba(255,255,255,0.45);
+    text-align:center;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    border-top:1px solid rgba(255,255,255,0.06);
+  }
+  .p-row-selected{
+    outline:1px solid rgba(167,139,250,0.45);
+    box-shadow:0 0 0 1px rgba(167,139,250,0.15), 0 0 14px rgba(167,139,250,0.12);
+  }
+
+  .p-fav-btn{
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.30);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition: transform 0.12s, background 0.15s, color 0.15s;
+    flex-shrink:0;
+    padding:0;
+  }
+  .p-fav-btn:hover{
+    background: rgba(250, 204, 21, 0.12);
+    color: rgba(253, 224, 71, 0.85);
+  }
+  .p-fav-btn:active{ transform: translateY(1px) scale(0.98); }
+  .p-mod-row.p-fav .p-fav-btn{
+    background: rgba(250, 204, 21, 0.18);
+    color: rgba(253, 224, 71, 0.95);
+  }
+
+  #p-panel-settings-btn:hover{
+    background: rgba(167,139,250,0.18);
+    color: #c4b5fd;
+  }
+  #p-delete-selected-btn:hover{
+    background: rgba(248, 113, 113, 0.18);
+    color: #fca5a5;
+  }
+
+  #p-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+  #p-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+
+  .p-greet {
+    margin-top: auto;
+    padding: 10px 8px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.45);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .p-mod-dev{
+    display:none;
+    margin-top: 2px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.35);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+  }
+  #pshsayhi-loader.p-dev .p-mod-dev{ display:block; }
+
+  .p-modal{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 10;
+    padding: 16px;
+  }
+  .p-modal-card{
+    width: min(320px, 100%);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+    padding: 12px 12px 10px;
+  }
+  .p-modal-title{
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: -0.01em;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 6px;
+  }
+  .p-modal-body{
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.35;
+    margin-bottom: 10px;
+  }
+  .p-modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap: 8px;
+  }
+  .p-modal-btn{
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.75);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    cursor:pointer;
+    transition: transform 0.12s, background 0.15s, border-color 0.15s;
+  }
+  .p-modal-btn:hover{
+    background: rgba(255,255,255,0.10);
+    border-color: rgba(255,255,255,0.16);
+  }
+  .p-modal-btn:active{ transform: translateY(1px) scale(0.99); }
+  .p-modal-btn.p-primary{
+    background: rgba(167,139,250,0.18);
+    border-color: rgba(167,139,250,0.35);
+    color: #c4b5fd;
   }
 
   .p-mod-name {

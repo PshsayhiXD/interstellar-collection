@@ -1,165 +1,70 @@
 const script = require("@interstellar/InterstellarScriptingMod");
 const LoaderUI = require("./ui").default;
 const { MODS } = require("./mods/registry");
+const { getSections } = require("./sections");
+const imported = require("./importedMods");
 
-async function checkForUpdates(
-  modSlug,
-  repoUser = "PshsayhiXD",
-  repoName = "interstellar-collection",
-) {
+const _VERSION = "1.1.5";
+
+async function checkForUpdates(ui, modSlug, repoUser = "PshsayhiXD", repoName = "interstellar-collection") {
   try {
-    let currentVersion = "0.0.0";
-    try {
-      const res = await fetch("./interstellar.json");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.version) currentVersion = data.version;
-      }
-    } catch (e) {
-      console.warn("[Updater] Could not load interstellar.json.");
-    }
-    const releasesRes = await fetch(
-      `https://api.github.com/repos/${repoUser}/${repoName}/releases`,
-    );
-    if (!releasesRes.ok) throw new Error("Failed to fetch releases");
+    console.log("[Updater] Checking for updates...");
+    console.log("[Updater] Current version:", _VERSION);
+    const releasesRes = await fetch(`https://api.github.com/repos/${repoUser}/${repoName}/releases?per_page=100&t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { Accept: "application/vnd.github+json" }
+    });
+    console.log("[Updater] Releases status:", releasesRes.status);
+    if (!releasesRes.ok) throw new Error(`Failed to fetch releases (${releasesRes.status})`);
     const releases = await releasesRes.json();
-    const prefix = `${modSlug}-v`;
-    const modReleases = releases
-      .filter(
-        (r) => r.tag_name?.startsWith(prefix) && !r.draft && !r.prerelease,
-      )
-      .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
-    if (!modReleases.length) return;
-    const latestRelease = modReleases[0];
-    const remoteVersion = latestRelease.tag_name.replace(prefix, "");
-    if (isNewerVersion(currentVersion, remoteVersion))
-      showUpdateBanner(latestRelease, remoteVersion, currentVersion);
+    console.log("[Updater] Release count:", Array.isArray(releases) ? releases.length : "non-array");
+    const slug = String(modSlug).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const extractVersion = (tag) => {
+      const value = String(tag || "").trim();
+      const patterns = [
+        new RegExp(`^${slug}[-_]?v?(\\d+\\.\\d+\\.\\d+(?:[-+][^\\s]+)?)$`, "i"),
+        /^v?(\d+\.\d+\.\d+(?:[-+][^\s]+)?)$/i,
+        /^(\d+\.\d+\.\d+(?:[-+][^\s]+)?)$/i
+      ];
+      for (const pattern of patterns) {
+        const match = value.match(pattern);
+        if (match) return match[1];
+      }
+      return null;
+    };
+    const isNewerVersion = (oldV, newV) => {
+      const oldParts = String(oldV).replace(/^v/i, "").split("-")[0].split(".").map((n) => Number.parseInt(n, 10) || 0);
+      const newParts = String(newV).replace(/^v/i, "").split("-")[0].split(".").map((n) => Number.parseInt(n, 10) || 0);
+      for (let i = 0; i < Math.max(oldParts.length, newParts.length); i++) {
+        const diff = (newParts[i] || 0) - (oldParts[i] || 0);
+        if (diff > 0) return true;
+        if (diff < 0) return false;
+      }
+      return false;
+    };
+    const matches = (Array.isArray(releases) ? releases : [])
+      .map((release) => ({ release, version: extractVersion(release.tag_name) }))
+      .filter(({ release, version }) => version && !release.draft && !release.prerelease)
+      .sort((a, b) => new Date(b.release.published_at || 0) - new Date(a.release.published_at || 0));
+    console.log("[Updater] Matching releases:", matches.map((m) => ({ tag: m.release.tag_name, version: m.version })));
+    if (!matches.length) {
+      console.log("[Updater] No matching releases found.");
+      ui?._renderUpdateBanner?.(null);
+      return;
+    }
+    const latestRelease = matches[0].release;
+    const remoteVersion = String(matches[0].version).replace(/^v/i, "").trim();
+    console.log("[Updater] Comparing:", { _VERSION, remoteVersion, tag: latestRelease.tag_name });
+    if (isNewerVersion(_VERSION, remoteVersion)) {
+      console.log("[Updater] Update available.");
+      ui?._renderUpdateBanner?.({ release: latestRelease, newVer: remoteVersion, oldVer: _VERSION });
+    } else {
+      console.log("[Updater] No update available.");
+      ui?._renderUpdateBanner?.(null);
+    }
   } catch (error) {
     console.error("[Updater] Update check failed:", error);
   }
-}
-
-const isNewerVersion = (oldV, newV) => {
-  const o = oldV.split(".").map(Number);
-  const n = newV.split(".").map(Number);
-  for (let i = 0; i < Math.max(o.length, n.length); i++) {
-    const diff = (n[i] || 0) - (o[i] || 0);
-    if (diff > 0) return true;
-    if (diff < 0) return false;
-  }
-  return false;
-};
-
-function parseMarkdown(md) {
-  if (!md) return "";
-  return md
-    .replace(/### (.*)/g, "<h3>$1</h3>")
-    .replace(/## (.*)/g, "<h2>$1</h2>")
-    .replace(/# (.*)/g, "<h1>$1</h1>")
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(?!\*)(.*?)\*(?!\*)/g, "<em>$1</em>")
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>')
-    .replace(/\n/g, "<br>");
-}
-
-function showUpdateBanner(release, newVer, oldVer) {
-  if (document.getElementById("pshsayhi-update-banner")) return;
-  if (!document.getElementById("pshsayhi-update-style")) {
-    const style = document.createElement("style");
-    style.id = "pshsayhi-update-style";
-    style.textContent = `
-      @keyframes pshsayhiSlideInBottom{
-        from{transform:translateY(50px);opacity:0}
-        to{transform:translateY(0);opacity:1}
-      }
-      .pshsayhi-update-close{
-        position:absolute;
-        top:10px;
-        right:15px;
-        cursor:pointer;
-        font-size:18px;
-        opacity:0.7;
-        transition:0.2s;
-      }
-      .pshsayhi-update-close:hover{opacity:1}
-      .pshsayhi-update-body h1,.pshsayhi-update-body h2,.pshsayhi-update-body h3{
-        margin:8px 0 4px 0;
-        font-size:1.1em;
-      }
-      .pshsayhi-update-btn{
-        display:inline-block;
-        margin-top:15px;
-        padding:8px 16px;
-        background:linear-gradient(135deg,#6e8efb,#a777e3);
-        color:white;
-        text-decoration:none;
-        border-radius:6px;
-        font-weight:500;
-        transition:0.2s;
-        text-align:center;
-        width:calc(100% - 32px);
-        box-sizing:border-box;
-        border:none;
-      }
-      .pshsayhi-update-btn:hover{
-        box-shadow:0 0 10px rgba(167,119,227,0.6);
-        transform:scale(1.02);
-      }
-      .pshsayhi-update-content{
-        padding:20px;
-      }
-      .pshsayhi-update-body{
-        font-size:0.9em;
-        color:#ddd;
-        margin-top:12px;
-        max-height:150px;
-        overflow-y:auto;
-        border-top:1px solid rgba(255,255,255,0.1);
-        padding-top:12px;
-        line-height:1.4;
-      }
-      .pshsayhi-update-body::-webkit-scrollbar{
-        width:4px;
-      }
-      .pshsayhi-update-body::-webkit-scrollbar-thumb{
-        background:rgba(255,255,255,0.2);
-        border-radius:2px;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-  const banner = document.createElement("div");
-  banner.id = "pshsayhi-update-banner";
-  banner.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 350px;
-        background: rgba(15, 15, 30, 0.85);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        color: white;
-        font-family: 'Inter', -apple-system, sans-serif;
-        z-index: 999999;
-        overflow: hidden;
-        animation: pshsayhiSlideInBottom 0.4s ease-out forwards;
-    `;
-  const asset = release.assets?.find((a) => a.name.endsWith(".zip"));
-  const downloadHtml = asset
-    ? `<a href="${asset.browser_download_url}" class="pshsayhi-update-btn">Download .zip Update</a>`
-    : "";
-  banner.innerHTML = `
-    <div class="pshsayhi-update-content">
-      <span class="pshsayhi-update-close" onclick="this.parentElement.parentElement.remove()">&times;</span>
-      <div style="font-weight:600;font-size:1.2rem;color:#fff;margin-bottom:5px;">Update Available 🚀</div>
-      <div style="font-size:0.9rem;color:#bbb;">Version ${oldVer} &rarr; <strong style="color:#fff;">${newVer}</strong></div>
-      <div class="pshsayhi-update-body">${parseMarkdown(release.body)}</div>
-      ${downloadHtml}
-    </div>`;
-  document.body.appendChild(banner);
 }
 
 class PshsayhiLoader extends script.default {
@@ -178,13 +83,36 @@ class PshsayhiLoader extends script.default {
           `[Pshsayhi's Loader] Failed to load mod class for: ${meta.id}`,
         );
     });
-    this.ui = new LoaderUI(this.handleModeChange.bind(this));
+    this.ui = null;
   }
   async load() {
     console.log("[Pshsayhi's Loader] Dynamic startup...");
     if (typeof document !== "undefined") {
-      this.ui.create();
-      checkForUpdates("pshsayhi-mod-loader");
+      const importedMetas = await imported.loadImportedMetas().catch(() => []);
+      const sections = getSections(importedMetas);
+      this.ui = new LoaderUI(
+        this.handleModeChange.bind(this),
+        sections,
+        (record) => {
+          const inst = imported.instantiateFromRecord(record);
+          if (!inst) throw new Error("Imported mod could not be instantiated");
+          this.modsMap[inst.id] = inst.instance;
+          console.log(`[Pshsayhi's Loader] Registered imported mod runtime: ${inst.id}`);
+        },
+        (id) => {
+          delete this.modsMap[id];
+        }
+      );
+
+      // Instantiate imported mod runtime classes
+      const importedInstances = await imported.instantiateImportedMods().catch(() => []);
+      importedInstances.forEach((m) => {
+        this.modsMap[m.id] = m.instance;
+        console.log(`[Pshsayhi's Loader] Loaded imported mod: ${m.id}`);
+      });
+
+      await this.ui.create();
+      await checkForUpdates(this.ui, "pshsayhi-mod-loader");
     }
   }
   handleModeChange(type, value) {
