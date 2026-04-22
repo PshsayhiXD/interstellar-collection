@@ -1,91 +1,84 @@
 const { execSync } = require("child_process");
 const readline = require("readline");
 
-const args = process.argv.slice(2);
-const modSlug = args.find((a) => !a.startsWith("--"));
-const versionIndex = args.indexOf(modSlug) + 1;
-const version =
-  args[versionIndex] && !args[versionIndex].startsWith("--")
-    ? args[versionIndex]
-    : null;
-const dryRun = args.includes("--dry-run");
+const parseArgs = () => {
+  const a = process.argv.slice(2);
+  const modSlug = a.find((v) => !v.startsWith("--"));
+  const i = a.indexOf(modSlug) + 1;
+  const version = a[i] && !a[i].startsWith("--") ? a[i] : null;
+  return { modSlug, version, dryRun: a.includes("--dry-run") };
+};
 
-if (!modSlug || !version) {
-  console.error("Usage: node release.js <modSlug> <version> [--dry-run]");
-  console.error("Example: node release.js oneko 1.1.0");
-  process.exit(1);
-}
+const confirm = (msg) => new Promise((res) => {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  rl.question(msg, (a) => {
+    rl.close();
+    res(["yes", "confirm"].includes(a.trim().toLowerCase()));
+  });
+});
 
-const commands = [
-  `git add ${modSlug} ${modSlug}.zip`,
-  `git commit -m "${modSlug} v${version}"`,
-  `git push`,
-  `git tag ${modSlug}-v${version}`,
-  `git push origin ${modSlug}-v${version}`,
-];
+const runCommands = (cmds) => {
+  for (const cmd of cmds) {
+    console.log(`> ${cmd}`);
+    const out = execSync(cmd, { stdio: ["pipe", "pipe", "pipe"] });
+    if (out?.toString().trim()) console.log(out.toString().trim());
+  }
+};
 
-const destructiveWords = [
-  "--force",
-  "reset --hard",
-  "clean",
-  "rebase",
-  "rm ",
-  "checkout",
-];
-
-for (const cmd of commands) {
-  for (const bad of destructiveWords) {
-    if (cmd.includes(bad)) {
-      console.error(
-        `\n[BLOCK] Destructive operation detected in command: "${cmd}"`,
-      );
-      console.error(`Matched phrase: "${bad}"`);
-      console.error("Execution strictly blocked for safety.");
+const validate = (cmds) => {
+  const bad = ["--force", "reset --hard", "clean", "rebase", "rm ", "checkout"];
+  for (const c of cmds) for (const b of bad)
+    if (c.includes(b)) {
+      console.error(`\n[BLOCK] "${b}" detected in "${c}"`);
       process.exit(1);
     }
-  }
-}
+};
 
-console.log("\n## Planned Git Actions:\n");
-commands.forEach((cmd) => console.log(` * ${cmd}`));
-console.log(`\n---------------------------------`);
-
-if (dryRun) {
-  console.log("\nDry run activated. Exiting without execution.");
-  process.exit(0);
-}
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
-rl.question('Type "yes" or "confirm" to execute these commands: ', (answer) => {
-  rl.close();
-  const confirmed = ["yes", "confirm"].includes(answer.trim().toLowerCase());
-
-  if (!confirmed) {
-    console.log("\nExecution cancelled by user.");
-    process.exit(0);
-  }
-
-  console.log("\nExecuting commands...\n");
-  try {
-    for (const cmd of commands) {
-      console.log(`> ${cmd}`);
-      const output = execSync(cmd, { stdio: ["pipe", "pipe", "pipe"] });
-      if (output && output.toString().trim()) {
-        console.log(output.toString().trim());
-      }
-    }
-    console.log("\nRelease successfully completed!");
-  } catch (error) {
-    console.error("\nExecution Failed!");
-    console.error(`\nCommand that failed: ${error.cmd}`);
-    console.error("\nError output:");
-    console.error(
-      error.stderr ? error.stderr.toString().trim() : error.message,
-    );
+(async () => {
+  const { modSlug, version, dryRun } = parseArgs();
+  if (!modSlug || !version) {
+    console.error("Usage: node release.js <modSlug> <version> [--dry-run]");
     process.exit(1);
   }
-});
+  const tag = `${modSlug}-v${version}`;
+  const cmds = [
+    `npm run zip -- ${modSlug}`,
+    `git add ${modSlug} ${modSlug}.zip`,
+    `git commit -m "${modSlug} v${version}"`,
+    `git push`,
+    `git tag ${tag}`,
+    `git push origin ${tag}`,
+  ];
+  const optional = [
+    `gh release create ${tag} --title "${modSlug} v${version}" --notes "Auto release"`
+  ];
+  validate(cmds);
+  console.log("\n## Planned Git Actions:\n");
+  cmds.forEach((c) => console.log(` * ${c}`));
+  console.log("\n---------------------------------");
+  if (dryRun) return console.log("\nDry run activated.");
+  if (!(await confirm('Type "yes" or "confirm" to execute: ')))
+    return console.log("\nCancelled.");
+  try {
+    console.log("\nExecuting...\n");
+    runCommands(cmds);
+    console.log("\nRelease completed!");
+  } catch (e) {
+    console.error("\nExecution Failed!");
+    console.error(`\nCommand: ${e.cmd}`);
+    console.error(e.stderr ? e.stderr.toString().trim() : e.message);
+    process.exit(1);
+  }
+  if (!(await confirm('Run optional release step? ')))
+    return console.log("\nSkipped optional.");
+  try {
+    console.log("\nExecuting optional...\n");
+    runCommands(optional);
+    console.log("\nOptional completed!");
+  } catch (e) {
+    console.error("\nOptional Failed!");
+    console.error(`\nCommand: ${e.cmd}`);
+    console.error(e.stderr ? e.stderr.toString().trim() : e.message);
+    process.exit(1);
+  }
+})();
