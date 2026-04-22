@@ -35,9 +35,9 @@ const validate = (cmds) => {
 };
 
 (async () => {
-  const { modSlug, version, dryRun } = parseArgs();
+  const { modSlug, version, reason, dryRun } = parseArgs();
   if (!modSlug || !version) {
-    console.error("Usage: node release.js <modSlug> <version> [--dry-run]");
+    console.error("Usage: node release.js <modSlug> <version> [reason] [--dry-run]");
     process.exit(1);
   }
   const tag = `${modSlug}-v${version}`;
@@ -50,14 +50,14 @@ const validate = (cmds) => {
     `git push origin ${tag}`,
   ];
   const optional = [
-    `gh release create ${tag} --title "${modSlug} v${version}" --notes "Auto release"`
+    `gh release create ${tag} --title "${modSlug} v${version}" --notes "${reason ?? "Auto release."}`
   ];
   validate(cmds);
-  console.log("\n## Planned Git Actions:\n");
+  console.log("\nGit Actions:\n");
   cmds.forEach((c) => console.log(` * ${c}`));
   console.log("\n---------------------------------");
   if (dryRun) return console.log("\nDry run activated.");
-  if (!(await confirm('Type "yes" or "confirm" to execute: ')))
+  if (await confirm('Type "yes" or "confirm" to execute: '))
     return console.log("\nCancelled.");
   try {
     console.log("\nExecuting...\n");
