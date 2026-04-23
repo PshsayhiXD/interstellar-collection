@@ -1,20 +1,28 @@
-const MODS = [
-  {
-    metadata: require("./straight/metadata").default,
-    module:   require("./straight/index")
-  },
-  {
-    metadata: require("./supergay/metadata").default,
-    module:   require("./supergay/index")
-  },
-  {
-    metadata: require("./oneko/metadata").default,
-    module:   require("./oneko/index")
-  },
-  {
-    metadata: require("./sparktrail/metadata").default,
-    module:   require("./sparktrail/index")
-  }
-];
+const MODS = {
+  outfit: [
+    {
+      metadata: require("./outfit/straight/metadata").default,
+      module:   require("./outfit/straight/index")
+    },
+    {
+      metadata: require("./outfit/purplewave/metadata").default,
+      module:   require("./outfit/purplewave/index")
+    },
+    {
+      metadata: require("./outfit/supergay/metadata").default,
+      module:   require("./outfit/supergay/index")
+    },
+  ],
+  extras: [
+    {
+      metadata: require("./extras/oneko/metadata").default,
+      module:   require("./extras/oneko/index")
+    },
+    {
+      metadata: require("./extras/sparktrail/metadata").default,
+      module:   require("./extras/sparktrail/index")
+    }
+  ]
+};
 
 exports.MODS = MODS;

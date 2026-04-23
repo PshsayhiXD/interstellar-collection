@@ -1,11 +1,11 @@
 exports.default = {
-  "id": "supergay",
-  "label": "Super Gay Mode",
-  "description": "A vibrant, colorful visual theme.",
+  "id": "straight",
+  "label": "Straight Mode",
+  "description": "Default, clean appearance scheme.",
   "author": "pshsayhi",
   "version": "1.0.0",
   "homeUrl": "https://github.com/PshsayhiXD/interstellar-collection",
-  "icon": "fa-rainbow",
+  "icon": "fa-mars",
   "entryPoint": "index.js",
   "type": "exclusive",
   "section": "outfit",
@@ -15,12 +15,13 @@ exports.default = {
     {
       "key": "speed",
       "label": "Speed (ms)",
+      "group": "Interval",
       "type": "range",
       "min": 10,
       "max": 200,
       "step": 5,
       "unit": "ms",
       "default": 85
-    }
+    },
   ]
 };

@@ -1,3 +1,61 @@
+function renderConfigGroups(config, modId, configState) {
+  const groups = new Map();
+
+  (config || []).forEach((cfg) => {
+    const key = cfg.group || "General";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(cfg);
+  });
+
+  return [...groups.entries()]
+    .map(([groupName, items], idx) => {
+      const body = items
+        .map((cfg) => {
+          const val = configState?.[modId]?.[cfg.key];
+          let inputHtml = "";
+          let itemClass = "p-config-item";
+
+          switch (cfg.type) {
+            case "range":
+              inputHtml = `
+                <div class="p-config-label">
+                  ${cfg.label}
+                  <span class="p-config-value" data-mod="${modId}" data-cfg="${cfg.key}">${val}${cfg.unit || "ms"}</span>
+                </div>
+                <input class="p-range p-config-input" type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${val}" data-mod="${modId}" data-cfg="${cfg.key}" />
+              `;
+              break;
+            case "checkbox":
+              itemClass += " p-config-row";
+              inputHtml = `
+                <div class="p-config-label">${cfg.label}</div>
+                <label class="p-switch">
+                  <input type="checkbox" class="p-config-input" data-mod="${modId}" data-cfg="${cfg.key}" ${val ? "checked" : ""}>
+                  <span class="p-slider"></span>
+                </label>
+              `;
+              break;
+            default:
+              inputHtml = `
+                <div class="p-config-label">${cfg.label}</div>
+                <input type="${cfg.type}" class="p-input p-config-input" placeholder="${cfg.placeholder || ""}" value="${val}" data-mod="${modId}" data-cfg="${cfg.key}" />
+              `;
+          }
+
+          return `<div class="${itemClass}">${inputHtml}</div>`;
+        })
+        .join("");
+
+      return `
+        <details class="p-config-group" ${idx === 0 ? "open" : ""}>
+          <summary class="p-config-group-title">${groupName}</summary>
+          <div class="p-config-group-body">${body}</div>
+        </details>
+      `;
+    })
+    .join("");
+}
+
 function buildPanel(sections, configState) {
   const panel = document.createElement("div");
   panel.id = "pshsayhi-loader";
@@ -25,6 +83,7 @@ function buildPanel(sections, configState) {
           <input id="p-search" type="search" placeholder="Filter mods…" autocomplete="off" />
           <div class="p-toolbar-group">
             <input id="p-import-input" type="file" accept=".zip" style="display:none;" />
+            <button id="p-folder-btn" type="button" class="p-tool-btn" title="Import a mod folder"><i class="fas fa-folder"></i></button>
             <button id="p-import-btn" type="button" class="p-tool-btn" title="Import a .zip mod package"><i class="fas fa-download"></i></button>
             <button id="p-enable-all" type="button" class="p-tool-btn" title="Enable all mods in this tab"><i class="fas fa-check"></i></button>
             <button id="p-disable-all" type="button" class="p-tool-btn" title="Disable all mods in this tab"><i class="fas fa-times"></i></button>
@@ -41,7 +100,6 @@ function buildPanel(sections, configState) {
             <span class="p-stat" data-k="favs">Favorite Mods: 0</span>
             <span class="p-stat" data-k="imports">Custom Mods: 0</span>
           </div>
-          <div id="p-feedback" class="p-feedback" aria-live="polite"></div>
         </div>
         <div id="p-content"></div>
       </div>
@@ -80,43 +138,9 @@ function buildPanel(sections, configState) {
       row.dataset.source      = mod.source || "built-in";
       row.dataset.version     = mod.version || "1.0.0";
 
-      let configHtml = "";
-      if (mod.config && mod.config.length > 0) {
-        const items = mod.config.map(cfg => {
-          const val = configState[mod.id][cfg.key];
-          let inputHtml = "";
-          let itemClass = "p-config-item";
-
-          switch(cfg.type) {
-            case "range":
-              inputHtml = `
-                <div class="p-config-label">
-                  ${cfg.label}
-                  <span class="p-config-value" data-mod="${mod.id}" data-cfg="${cfg.key}">${val}${cfg.unit || 'ms'}</span>
-                </div>
-                <input class="p-range p-config-input" type="range" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${val}" data-mod="${mod.id}" data-cfg="${cfg.key}" />
-              `;
-              break;
-            case "checkbox":
-              itemClass += " p-config-row";
-              inputHtml = `
-                <div class="p-config-label">${cfg.label}</div>
-                <label class="p-switch">
-                  <input type="checkbox" class="p-config-input" data-mod="${mod.id}" data-cfg="${cfg.key}" ${val ? 'checked' : ''}>
-                  <span class="p-slider"></span>
-                </label>
-              `;
-              break;
-            default:
-              inputHtml = `
-                <div class="p-config-label">${cfg.label}</div>
-                <input type="${cfg.type}" class="p-input p-config-input" placeholder="${cfg.placeholder || ''}" value="${val}" data-mod="${mod.id}" data-cfg="${cfg.key}" />
-              `;
-          }
-          return `<div class="${itemClass}">${inputHtml}</div>`;
-        }).join("");
-        configHtml = `<div class="p-config">${items}</div>`;
-      }
+      const configHtml = mod.config && mod.config.length > 0
+        ? `<div class="p-config">${renderConfigGroups(mod.config, mod.id, configState)}</div>`
+        : "";
 
       const iconHtml = mod.iconPath 
         ? `<img class="p-mod-img" data-path="${mod.iconPath}" data-mod-id="${mod.id}" data-source="${mod.source || 'built-in'}" src="" style="display:none;" />`

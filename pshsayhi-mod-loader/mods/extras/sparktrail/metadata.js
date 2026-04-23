@@ -15,6 +15,7 @@ exports.default = {
     {
       key: "speed",
       label: "Spawn gap (ms)",
+      group: "Interval",
       type: "range",
       min: 16,
       max: 160,

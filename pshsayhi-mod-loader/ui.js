@@ -3,7 +3,8 @@ const { STYLES } = require("./styles");
 const { buildPanel } = require("./panel");
 const idb = require("./idb");
 const imported = require("./importedMods");
-const { importZipFile } = require("./importZip");
+const { importZipFile, importModpackZip } = require("./importZip");
+const { importFolder } = require("./importFolder");
 const { getSections } = require("./sections");
 const { MODS } = require("./mods/registry");
 const api = require("@interstellar/StellarAPI");
@@ -15,6 +16,17 @@ function parsePx(val) {
     return Number.isNaN(n) ? null : n;
   }
   return null;
+}
+function pickFolder() {
+  if ("showDirectoryPicker" in window) return window.showDirectoryPicker();
+  return new Promise((res) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.webkitdirectory = true;
+    input.multiple = true;
+    input.onchange = () => res(input.files);
+    input.click();
+  });
 }
 
 class LoaderUI {
@@ -75,6 +87,35 @@ class LoaderUI {
     s.id = "ML-styles";
     s.innerHTML = STYLES;
     document.head.appendChild(s);
+  }
+
+  _showToast(kind, msg, duration = 3500) {
+    if (!msg) return;
+    let host = this.container.querySelector("#ML-toast-host");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "ML-toast-host";
+      this.container.appendChild(host);
+    }
+    const toast = document.createElement("div");
+    toast.className = `ML-toast ML-toast-${kind || "info"}`;
+    const content = document.createElement("div");
+    content.className = "ML-toast-content";
+    content.textContent = msg;
+    toast.appendChild(content);
+    host.appendChild(toast);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => toast.classList.add("ML-toast-show"));
+    });
+    const removeToast = () => {
+      if (!toast.isConnected) return;
+      toast.classList.remove("ML-toast-show");
+      toast.addEventListener("transitionend", () => toast.remove(), {
+        once: true,
+      });
+      setTimeout(() => toast.remove(), 500);
+    };
+    setTimeout(removeToast, duration);
   }
 
   async create() {
@@ -151,15 +192,6 @@ class LoaderUI {
     this._renderUpdateBanner(this.updateBannerData);
   }
 
-  _setFeedback(kind, msg) {
-    const el = this.container?.querySelector("#p-feedback");
-    if (!el) return;
-    el.classList.remove("p-ok", "p-err");
-    if (kind === "ok") el.classList.add("p-ok");
-    if (kind === "err") el.classList.add("p-err");
-    el.textContent = msg || "";
-  }
-
   _parseUpdateMarkdown(md) {
     if (!md) return "";
     return String(md)
@@ -212,9 +244,7 @@ class LoaderUI {
     }
     if (downloadBtn) {
       downloadBtn.style.display = asset ? "inline-flex" : "none";
-      downloadBtn.textContent = asset
-        ? "Download .zip"
-        : "No .zip asset";
+      downloadBtn.textContent = asset ? "Download .zip" : "No .zip asset";
       downloadBtn.onclick = asset
         ? () => window.open(asset.browser_download_url, "_blank")
         : null;
@@ -317,7 +347,7 @@ class LoaderUI {
     const row = this._getSelectedRow();
     if (!row) return;
     if (row.dataset.source === "built-in") {
-      this._setFeedback("err", "Built-in mods cannot be deleted");
+      this._showToast("err", "Built-in mods cannot be deleted");
       return;
     }
 
@@ -350,7 +380,7 @@ class LoaderUI {
       try {
         await this.onDeleteImportedMod(this.selectedModId);
       } catch (e) {
-        this._setFeedback("err", e?.message || "Delete failed");
+        this._showToast("err", e?.message || "Delete failed");
         return;
       }
     }
@@ -362,7 +392,7 @@ class LoaderUI {
 
     const metas = await imported.loadImportedMetas().catch(() => []);
     await this._rebuildWithSections(getSections(metas));
-    this._setFeedback("ok", "Imported mod deleted");
+    this._showToast("ok", "Imported mod deleted");
   }
   _defaultUiState() {
     return {
@@ -482,7 +512,9 @@ class LoaderUI {
           blob = await imported.getImportedFileBlob(modId, path);
           if (!blob) throw new Error("Missing imported icon blob");
         } else {
-          const fullPath = `./mods/${modId}/${path}`;
+          const row = img.closest(".p-mod-row");
+          const section = row ? row.dataset.sectionKey : "extras";
+          const fullPath = `./mods/${section}/${modId}/${path}`;
           const resp = await fetch(fullPath);
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           blob = await resp.blob();
@@ -736,38 +768,134 @@ class LoaderUI {
         const f = importInput.files && importInput.files[0];
         importInput.value = "";
         if (!f) return;
-        this._setFeedback("", "Importing…");
-        try {
-          const importedIds = await imported
-            .loadImportedMetas()
-            .then((m) => m.map((x) => x.id))
-            .catch(() => []);
-          const existing = new Set([...this._getBuiltInIds(), ...importedIds]);
-          const rec = await importZipFile(f, {
-            existingIds: existing,
-            onDuplicate: async (meta) => {
-              const d = await this._promptDuplicate(meta);
-              return d === "overwrite" ? "overwrite" : "cancel";
-            },
-          });
-
-          if (this.onImportedMod) {
-            try {
-              this.onImportedMod(rec);
-            } catch (e) {
-              console.warn(
-                "[Pshsayhi's Loader] Imported mod registered with UI but failed to register runtime:",
-                e?.message || e,
-              );
-            }
+        const activeSection = this.sections[this.activeSectionIdx];
+        const isModpackTab = activeSection?.key === "modpack";
+        const defaultSec = activeSection ? activeSection.key : "extras";
+        const builtInIds = this._getBuiltInIds();
+        const handleDuplicate = async (meta) => {
+          if (builtInIds.has(String(meta.id))) {
+            throw new Error(`Cannot overwrite built-in mod: ${meta.id}`);
           }
+          const d = await this._promptDuplicate(meta);
+          return d === "overwrite" ? "overwrite" : "cancel";
+        };
+        if (isModpackTab) {
+          this._showToast("info", "Importing modpack…");
+          try {
+            const importedIds = await imported
+              .loadImportedMetas()
+              .then((m) => m.map((x) => x.id))
+              .catch(() => []);
+            const existing = new Set([...builtInIds, ...importedIds]);
+            const result = await importModpackZip(f, {
+              existingIds: existing,
+              defaultSection: defaultSec,
+              onDuplicate: handleDuplicate,
+            });
+            for (const rec of result.records) {
+              if (this.onImportedMod) {
+                try {
+                  this.onImportedMod(rec);
+                } catch (e) {
+                  console.warn(
+                    "[Pshsayhi's Loader] Modpack mod runtime registration failed:",
+                    e?.message || e,
+                  );
+                }
+              }
+            }
+            const metas = await imported.loadImportedMetas().catch(() => []);
+            await this._rebuildWithSections(getSections(metas));
+            this._showToast(
+              "ok",
+              `Modpack '${result.meta.name}' imported (${result.records.length} mod${result.records.length !== 1 ? "s" : ""})`,
+            );
+          } catch (e) {
+            this._showToast("err", e?.message || "Modpack import failed");
+          }
+        } else {
+          // Single mod import
+          this._showToast("info", "Importing mod…");
+          try {
+            const importedIds = await imported
+              .loadImportedMetas()
+              .then((m) => m.map((x) => x.id))
+              .catch(() => []);
+            const existing = new Set([...builtInIds, ...importedIds]);
+            const rec = await importZipFile(f, {
+              existingIds: existing,
+              defaultSection: defaultSec,
+              onDuplicate: handleDuplicate,
+            });
+            if (this.onImportedMod) {
+              try {
+                this.onImportedMod(rec);
+              } catch (e) {
+                console.warn(
+                  "[Pshsayhi's Loader] Imported mod registered with UI but failed to register runtime:",
+                  e?.message || e,
+                );
+              }
+            }
+            const metas = await imported.loadImportedMetas().catch(() => []);
+            await this._rebuildWithSections(getSections(metas));
+            this._showToast("ok", `Imported '${rec.id}'`);
+            if (rec.metadata?.scripting)
+              this._showToast(
+                "warn",
+                `'${rec.id}' uses the scripting API. Only import mods from sources you trust. I take no responsibility for what imported mods do.`,
+                6000,
+              );
+          } catch (e) {
+            this._showToast("err", e?.message || "Import failed");
+          }
+        }
+      });
+    }
 
-          const metas = await imported.loadImportedMetas().catch(() => []);
-          const nextSections = getSections(metas);
-          await this._rebuildWithSections(nextSections);
-          this._setFeedback("ok", `Imported '${rec.id}'`);
+    const folderBtn = this.container.querySelector("#p-folder-btn");
+    if (folderBtn) {
+      folderBtn.addEventListener("click", async () => {
+        try {
+          const res = await pickFolder();
+          const activeSection = this.sections[this.activeSectionIdx];
+          const defaultSec = activeSection ? activeSection.key : "extras";
+          const builtInIds = this._getBuiltInIds();
+          this._showToast("info", "Importing folder...");
+          let rec;
+          if (res instanceof FileList) {
+            rec = await importFolderFromFiles(res, {
+              existingIds: new Set([
+                ...builtInIds,
+                ...(await this._getImportedIds()),
+              ]),
+              defaultSection: defaultSec,
+              onDuplicate: async (meta) => {
+                if (builtInIds.has(String(meta.id)))
+                  throw new Error("Cannot overwrite built-in mod!");
+                return await this._promptDuplicate(meta);
+              },
+            });
+          } else {
+            rec = await importFolder(res, {
+              existingIds: new Set([
+                ...builtInIds,
+                ...(await this._getImportedIds()),
+              ]),
+              defaultSection: defaultSec,
+              onDuplicate: async (meta) => {
+                if (builtInIds.has(String(meta.id)))
+                  throw new Error("Cannot overwrite built-in mod!");
+                return await this._promptDuplicate(meta);
+              },
+            });
+          }
+          if (this.onImportedMod) this.onImportedMod(rec);
+          const metas = await imported.loadImportedMetas();
+          await this._rebuildWithSections(getSections(metas));
+          this._showToast("ok", `Imported folder as '${rec.id}'`);
         } catch (e) {
-          this._setFeedback("err", e?.message || "Import failed");
+          if (e.name !== "AbortError") this._showToast("err", e.message);
         }
       });
     }
@@ -789,7 +917,7 @@ class LoaderUI {
       if (!pane) return;
       const secType = pane.dataset.secType;
       if (secType !== "toggle") {
-        this._setFeedback("err", "Bulk actions only apply to toggle tabs");
+        this._showToast("err", "Bulk actions only apply to toggle tabs");
         return;
       }
       pane.querySelectorAll(".p-mod-row").forEach((row) => {
@@ -1065,8 +1193,17 @@ class LoaderUI {
   }
 
   _updateStatsBar() {
-    // placeholder: stats UI is added in panel.js, updated later once present
-    // (kept here so state persistence can call it safely)
+    if (!this.container) return;
+    const stats = this._getStats();
+    const set = (k, label, v) => {
+      const el = this.container.querySelector(`.p-stat[data-k="${k}"]`);
+      if (!el) return;
+      el.textContent = `${label} ${v}`;
+    };
+    set("total", "mods", stats.total);
+    set("enabled", "on", stats.enabled);
+    set("favs", "fav", stats.favs);
+    set("imports", "imp", stats.imports);
   }
 }
 

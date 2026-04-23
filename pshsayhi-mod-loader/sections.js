@@ -10,6 +10,11 @@ const SECTIONS_MAP = {
     label: "Extras",
     icon:  "",
     type:  "toggle"
+  },
+  modpack: {
+    label: "Modpacks",
+    icon:  "fa-box-open",
+    type:  "toggle"
   }
 };
 
@@ -35,9 +40,9 @@ function getSections(extraMetas = []) {
     sec.mods.push(mod);
   };
 
-  MODS.forEach((item) => {
+Object.values(MODS).flat().forEach((item) => {
     const meta = item.metadata;
-    pushMod(meta.section, {
+    pushMod(meta.section || "extras", {
       id: meta.id,
       label: meta.label,
       description: meta.description,
@@ -45,7 +50,7 @@ function getSections(extraMetas = []) {
       version: meta.version,
       licenseName: meta.licenseName,
       licensePath: meta.licensePath,
-      icon: meta.icon,
+      icon: meta.icon || "fa-question-circle",
       iconPath: meta.iconPath,
       source: "built-in",
       config: meta.config || []
@@ -54,7 +59,9 @@ function getSections(extraMetas = []) {
 
   (extraMetas || []).forEach((meta) => {
     if (!meta || !meta.id) return;
-    pushMod(meta.section, {
+    // Mods imported as part of a modpack always go to the modpack section
+    const secKey = meta.source === "modpack" ? "modpack" : (meta.section || "extras");
+    pushMod(secKey, {
       id: meta.id,
       label: meta.label || meta.id,
       description: meta.description,
@@ -62,7 +69,7 @@ function getSections(extraMetas = []) {
       version: meta.version,
       licenseName: meta.licenseName,
       licensePath: meta.licensePath,
-      icon: meta.icon || "fa-puzzle-piece",
+      icon: meta.icon || "fa-question-circle",
       iconPath: meta.iconPath,
       source: meta.source || "imported",
       config: meta.config || []
