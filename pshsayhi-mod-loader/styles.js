@@ -665,7 +665,7 @@ const STYLES = `
     overflow: hidden;
     transition: color 0.3s;
   }
-  .p-mod-row:hover .p-mod-desc {
+  .p-mod-row.p-expanded .p-mod-desc {
     -webkit-line-clamp: unset;
     color: rgba(255,255,255,0.85);
   }
@@ -677,6 +677,37 @@ const STYLES = `
     overflow: hidden;
     text-overflow: ellipsis;
     width: 100%;
+  }
+
+  .p-mod-collapse-btn {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: rgba(255,255,255,0.3);
+    transition: transform 0.2s, color 0.2s;
+    border-radius: 6px;
+  }
+  .p-mod-collapse-btn:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.6);
+  }
+  .p-mod-row.p-expanded .p-mod-collapse-btn {
+    transform: rotate(180deg);
+  }
+
+  .p-mod-body {
+    display: none;
+    flex-direction: column;
+    padding: 0 11px 10px;
+    gap: 8px;
+    border-top: 1px solid rgba(255,255,255,0.03);
+    animation: rowSlideIn 0.3s ease-out;
+  }
+  .p-mod-row.p-expanded .p-mod-body {
+    display: flex;
   }
 
   .p-status {
@@ -703,13 +734,10 @@ const STYLES = `
   }
 
   .p-config {
-    padding: 0 11px 10px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    display: none;
   }
-  .p-row-active .p-config { display: flex; }
 
   .p-config-item { display: flex; flex-direction: column; gap: 4px; }
   .p-config-item.p-config-row {
@@ -948,6 +976,54 @@ const STYLES = `
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* Dev Section */
+  .p-dev-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .p-dev-preview {
+    width: 100%;
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.05);
+    position: relative;
+  }
+  .p-sprite-layer {
+    position: absolute;
+    inset: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: pixelated;
+  }
+  .p-dev-code {
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 11px;
+    width: 100%;
+    height: 150px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: #a78bfa;
+    padding: 10px;
+    outline: none;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .p-dev-code:focus {
+    border-color: rgba(167,139,250,0.4);
   }
 `;
 
