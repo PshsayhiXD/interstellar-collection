@@ -133,6 +133,7 @@ class LoaderUI {
     this._injectOpenButton();
     this._renderFavorites();
     this._renderDevMode();
+    this._initDevCard();
     this._applySearchFilter();
     this._updateStatsBar();
     this._applyPersistedModRuntime();
@@ -757,6 +758,10 @@ class LoaderUI {
     this.container.querySelectorAll(".p-mod-row").forEach((row) => {
       row.addEventListener("click", (e) => {
         if (e.target.closest(".p-fav-btn")) return;
+        if (e.target.closest(".p-mod-collapse-btn")) {
+          row.classList.toggle("p-expanded");
+          return;
+        }
         this._setSelectedRow(row.dataset.modId);
       });
     });
@@ -1190,6 +1195,90 @@ class LoaderUI {
   _renderDevMode() {
     if (!this.container) return;
     this.container.classList.toggle("p-dev", !!this.devMode);
+
+    const devCat = this.container.querySelector('.p-cat[data-idx] i.fa-terminal')?.closest('.p-cat');
+    if (devCat) {
+      devCat.style.display = this.devMode ? 'flex' : 'none';
+    }
+  }
+
+  _initDevCard() {
+    const codeArea = this.container.querySelector("#p-dev-code");
+    const previewImg = this.container.querySelector("#p-dev-img");
+    if (!codeArea || !previewImg) return;
+
+    const defaultCode = `// Human sprite generator
+const canvas = document.createElement('canvas');
+canvas.width = 100;
+canvas.height = 150;
+const ctx = canvas.getContext('2d');
+
+const colors = {
+  color_body: "#46a032",
+  color_legs: "#124080",
+  color_feet: "#604020",
+  color_hair: "#d0b090",
+  color_skin: "#d0b090"
+};
+
+// Side view rendering
+// Head
+ctx.fillStyle = colors.color_skin;
+ctx.fillRect(40, 15, 30, 40);
+
+// Hair
+ctx.fillStyle = colors.color_hair;
+ctx.fillRect(40, 15, 30, 5);
+
+// Neck
+ctx.fillStyle = colors.color_skin;
+ctx.fillRect(50, 55, 10, 5);
+
+// Torso
+ctx.fillStyle = colors.color_body;
+ctx.fillRect(45, 60, 20, 50);
+
+// Arm
+ctx.fillStyle = colors.color_body;
+ctx.fillRect(50, 60, 10, 35);
+ctx.fillStyle = colors.color_skin;
+ctx.fillRect(50, 95, 10, 8); // Hand (affected by color_skin)
+
+// Legs
+ctx.fillStyle = colors.color_legs;
+ctx.fillRect(45, 110, 18, 30);
+
+// Feet
+ctx.fillStyle = colors.color_feet;
+ctx.fillRect(40, 140, 25, 8);
+
+// Eye
+ctx.fillStyle = "white";
+ctx.fillRect(60, 25, 6, 6);
+ctx.fillStyle = "black";
+ctx.fillRect(63, 27, 2, 2);
+
+// Mouth
+ctx.fillStyle = "rgba(0,0,0,0.3)";
+ctx.fillRect(60, 45, 6, 1);
+
+canvas.toDataURL();`;
+
+    codeArea.value = defaultCode;
+
+    const updatePreview = () => {
+      try {
+        const result = eval(codeArea.value);
+        if (typeof result === 'string' && result.startsWith('data:image')) {
+          previewImg.src = result;
+        }
+      } catch (e) {
+        console.error("Dev Card Error:", e);
+      }
+    };
+
+    codeArea.addEventListener("input", updatePreview);
+    updatePreview();
   }
 
   _updateStatsBar() {

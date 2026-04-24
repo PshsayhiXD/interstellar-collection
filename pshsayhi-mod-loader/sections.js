@@ -15,6 +15,11 @@ const SECTIONS_MAP = {
     label: "Modpacks",
     icon:  "fa-box-open",
     type:  "toggle"
+  },
+  dev: {
+    label: "Dev",
+    icon:  "fa-terminal",
+    type:  "toggle"
   }
 };
 
@@ -52,6 +57,7 @@ Object.values(MODS).flat().forEach((item) => {
       licensePath: meta.licensePath,
       icon: meta.icon || "fa-question-circle",
       iconPath: meta.iconPath,
+      customHtml: meta.customHtml,
       source: "built-in",
       config: meta.config || []
     });
@@ -71,6 +77,7 @@ Object.values(MODS).flat().forEach((item) => {
       licensePath: meta.licensePath,
       icon: meta.icon || "fa-question-circle",
       iconPath: meta.iconPath,
+      customHtml: meta.customHtml,
       source: meta.source || "imported",
       config: meta.config || []
     });
