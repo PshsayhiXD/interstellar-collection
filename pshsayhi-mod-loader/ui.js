@@ -28,31 +28,30 @@ function pickFolder() {
     input.click();
   });
 }
+const loadImageFromBase64 = src =>
+  new Promise(res => {
+    if (!src) return res(null);
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = src;
+  });
 async function loadAssets() {
-  const paths = {
-    arm: "assets/img/player_arm.png",
-    face: "assets/img/player_face.png",
-    foot: "assets/img/player_foot.png",
-    hair: "assets/img/player_hair.png",
-    head: "assets/img/player_head.png",
-    hand: "assets/img/player_hand.png",
-    leg: "assets/img/player_leg.png",
-    body: "assets/img/player.png",
-  };
-  const assets = {};
-  await Promise.all(
-    Object.entries(paths).map(
-      ([k, src]) =>
-        new Promise((res) => {
-          const img = new Image();
-          img.src = src;
-          img.onload = () => {
-            assets[k] = img;
-            res();
-          };
-        }),
-    ),
-  );
+  if (window.__pModLoaderLoadedAssets) return window.__pModLoaderLoadedAssets;
+  const map = window.__pModLoaderAssetMap || {};
+  const entries = [
+    ["body", "player.png"],
+    ["leg", "player_leg.png"],
+    ["head", "player_head.png"],
+    ["hair", "player_hair.png"],
+    ["foot", "player_foot.png"],
+    ["face", "player_face.png"],
+    ["arm", "player_arm.png"],
+    ["hand", "player_hand.png"]
+  ];
+  const loaded = await Promise.all(entries.map(async ([key, file]) => [key, await loadImageFromBase64(map[file])]));
+  const assets = Object.fromEntries(loaded.filter(([, img]) => img));
+  window.__pModLoaderLoadedAssets = assets;
   return assets;
 }
 
@@ -552,7 +551,7 @@ class LoaderUI {
         img.style.display = "block";
       } catch (e) {
         console.warn(
-          `[Pshsayhi's Loader] Failed to load icon for mod '${modId}' at '${path}':`,
+          `[Mod Loader] Failed to load icon for mod '${modId}' at '${path}':`,
           e.message,
         );
       }
@@ -834,7 +833,7 @@ class LoaderUI {
                   this.onImportedMod(rec);
                 } catch (e) {
                   console.warn(
-                    "[Pshsayhi's Loader] Modpack mod runtime registration failed:",
+                    "[Mod Loader] Modpack mod runtime registration failed:",
                     e?.message || e,
                   );
                 }
@@ -868,7 +867,7 @@ class LoaderUI {
                 this.onImportedMod(rec);
               } catch (e) {
                 console.warn(
-                  "[Pshsayhi's Loader] Imported mod registered with UI but failed to register runtime:",
+                  "[Mod Loader] Imported mod registered with UI but failed to register runtime:",
                   e?.message || e,
                 );
               }
@@ -1240,11 +1239,12 @@ class LoaderUI {
     if (!codeArea || !previewImg) return;
     const asset = await loadAssets();
     if (!asset) return;
-    const needAsset = [
-      "body", "leg", "head", "hair", "foot", "face", "arm", "hand",
-    ];
+    const needAsset = ["body", "leg", "head", "hair", "foot", "face", "arm", "hand"];
     for (const name of needAsset) {
-      if (!asset[name]) { console.error(`Asset ${name} is required but not found`); return; }
+      if (!asset[name]) {
+        console.error(`[Mod Loader] Asset ${name} is required but not found`);
+        return;
+      }
     }
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
@@ -1362,7 +1362,7 @@ class LoaderUI {
           requestAnimationFrame:rafMock, cancelAnimationFrame:cafMock,
         };
         new Function(...Object.keys(globals), code)(...Object.values(globals));
-      } catch(e) { console.error(`[dev vfs] ${filePath}:`, e); }
+      } catch(e) { console.error(`[Mod Loader] ${filePath}:`, e); }
       return m.exports;
     };
     _requireVirtual = (name, fromPath="") => {
@@ -1523,7 +1523,7 @@ class LoaderUI {
             }
             if (!tabsData.has(activeTab)) activeTab = MAIN_TAB;
             renderTree(); renderTabBar(); updateSaveBtn();
-          } catch(e) { console.error("[dev] zip import error:", e); }
+          } catch(e) { console.error("[Mod Loader] zip import error:", e); }
         };
         input.click();
       });

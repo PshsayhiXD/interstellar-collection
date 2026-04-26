@@ -4,7 +4,7 @@ const { MODS } = require("./mods/registry");
 const { getSections } = require("./sections");
 const imported = require("./importedMods");
 const checkForUpdates = require("./update").default;
-
+require("./assets/b64/assetsMap");
 class SandboxMod {
   constructor(code) {
     this.worker = new Worker("./sandbox.js");

@@ -129,7 +129,7 @@ async function instantiateImportedMods() {
       out.push(inst);
     } catch (e) {
       // Skip broken imports, but keep them persisted for later inspection
-      console.warn(`[Pshsayhi's Loader] Imported mod failed to load:`, e?.message || e);
+      console.warn(`[Mod Loader] Imported mod failed to load:`, e?.message || e);
     }
   }
 
