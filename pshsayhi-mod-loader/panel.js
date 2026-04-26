@@ -95,10 +95,10 @@ function buildPanel(sections, configState) {
         </div>
         <div id="p-stats" class="p-stats">
           <div class="p-stats-left">
-            <span class="p-stat" data-k="total">Total Mods: 0</span>
-            <span class="p-stat" data-k="enabled">Enabled Mods: 0</span>
-            <span class="p-stat" data-k="favs">Favorite Mods: 0</span>
-            <span class="p-stat" data-k="imports">Custom Mods: 0</span>
+            <span class="p-stat" data-k="total">mods: 0</span>
+            <span class="p-stat" data-k="enabled">on: 0</span>
+            <span class="p-stat" data-k="favs">fav: 0</span>
+            <span class="p-stat" data-k="imports">imp: 0</span>
           </div>
         </div>
         <div id="p-content"></div>
@@ -129,40 +129,96 @@ function buildPanel(sections, configState) {
     pane.dataset.secKey  = sec.key;
     pane.dataset.secType = sec.type;
 
-    sec.mods.forEach(mod => {
-      const row = document.createElement("div");
-      row.className           = "p-mod-row";
-      row.dataset.modId       = mod.id;
-      row.dataset.sectionKey  = sec.key;
-      row.dataset.sectionType = sec.type;
-      row.dataset.source      = mod.source || "built-in";
-      row.dataset.version     = mod.version || "1.0.0";
-
-      const configHtml = mod.config && mod.config.length > 0
-        ? `<div class="p-config">${renderConfigGroups(mod.config, mod.id, configState)}</div>`
-        : "";
-
-      const iconHtml = mod.iconPath 
-        ? `<img class="p-mod-img" data-path="${mod.iconPath}" data-mod-id="${mod.id}" data-source="${mod.source || 'built-in'}" src="" style="display:none;" />`
-        : `<i class="fas ${mod.icon}"></i>`;
-
-      row.innerHTML = `
-        <div class="p-mod-header" data-mod-id="${mod.id}" data-section-key="${sec.key}" data-section-type="${sec.type}">
-          ${mod.id !== 'off' ? `<button class="p-fav-btn" type="button" title="Favorite" data-fav-id="${mod.id}"><i class="fas fa-star"></i></button>` : ''}
-          <span class="p-status">off</span>
-          <div class="p-mod-icon">${iconHtml}</div>
-          <div class="p-mod-info">
-            <span class="p-mod-name">${mod.label}</span>
-            ${mod.description ? `<div class="p-mod-desc">${mod.description}</div>` : ''}
-            ${mod.id !== 'off' ? `<div class="p-mod-meta">v${mod.version || '1.0.0'} by ${mod.author || 'unknown'} • ${mod.licenseName || 'Mod'}</div>` : ''}
-            ${mod.id !== 'off' ? `<div class="p-mod-dev">id: <span>${mod.id}</span> • src: <span>${mod.source || 'built-in'}</span></div>` : ''}
+    if (sec.key === 'dev') {
+      const devCard = document.createElement("div");
+      devCard.className = "p-dev-card";
+      devCard.innerHTML = `
+        <details class="p-dev-section" open>
+          <summary class="p-dev-section-title"><i class="fas fa-eye"></i> Preview &amp; Files</summary>
+          <div class="p-dev-section-body">
+            <div class="p-dev-top">
+              <div class="p-dev-preview">
+                <img id="p-dev-img" src="" alt="Preview" />
+              </div>
+              <div class="p-dev-sidebar">
+                <div class="p-dev-import-row">
+                  <button id="p-dev-import-folder" class="p-dev-imp-btn" type="button" title="Import folder"><i class="fas fa-folder-open"></i> Folder</button>
+                  <button id="p-dev-import-zip" class="p-dev-imp-btn" type="button" title="Import zip"><i class="fas fa-file-archive"></i> Zip</button>
+                </div>
+                <div id="p-dev-tree" class="p-dev-tree"><span class="p-dev-tree-empty">no files</span></div>
+              </div>
+            </div>
           </div>
-        </div>
-        ${configHtml}
+        </details>
+        <details class="p-dev-section" open>
+          <summary class="p-dev-section-title"><i class="fas fa-code"></i> Editor</summary>
+          <div class="p-dev-section-body">
+            <div id="p-dev-tabs" class="p-dev-tabs"></div>
+            <div class="p-dev-code-bar">
+              <button id="p-dev-run" class="p-dev-imp-btn p-dev-run-btn" type="button" title="Run (Ctrl+Enter)"><i class="fas fa-play"></i></button>
+              <label class="p-dev-autorun-label" title="Re-run on every keystroke">
+                <input id="p-dev-autorun" type="checkbox" checked /> auto
+              </label>
+              <button id="p-dev-save-file" class="p-dev-imp-btn" type="button" title="Save &amp; download file (Ctrl+S)" disabled><i class="fas fa-download"></i> Save</button>
+            </div>
+            <div id="p-dev-error" class="p-dev-error" style="display:none"></div>
+            <textarea id="p-dev-code" class="p-dev-code" spellcheck="false" placeholder="Enter JS code here..."></textarea>
+          </div>
+        </details>
+        <details class="p-dev-section">
+          <summary class="p-dev-section-title"><i class="fas fa-terminal"></i> Console</summary>
+          <div class="p-dev-section-body">
+            <div class="p-dev-log-bar">
+              <button id="p-dev-clear-log" class="p-dev-imp-btn" type="button" title="Clear log"><i class="fas fa-trash-alt"></i> Clear</button>
+            </div>
+            <div id="p-dev-log" class="p-dev-log"></div>
+          </div>
+        </details>
       `;
+      pane.appendChild(devCard);
+    } else {
+      sec.mods.forEach(mod => {
+        const row = document.createElement("div");
+        row.className           = "p-mod-row";
+        row.dataset.modId       = mod.id;
+        row.dataset.sectionKey  = sec.key;
+        row.dataset.sectionType = sec.type;
+        row.dataset.source      = mod.source || "built-in";
+        row.dataset.version     = mod.version || "1.0.0";
 
-      pane.appendChild(row);
-    });
+        const configHtml = mod.config && mod.config.length > 0
+          ? `<div class="p-config">${renderConfigGroups(mod.config, mod.id, configState)}</div>`
+          : "";
+
+        const iconHtml = mod.iconPath 
+          ? `<img class="p-mod-img" data-path="${mod.iconPath}" data-mod-id="${mod.id}" data-source="${mod.source || 'built-in'}" src="" style="display:none;" />`
+          : `<i class="fas ${mod.icon}"></i>`;
+
+        if (mod.customHtml) {
+          row.innerHTML = mod.customHtml;
+        } else {
+          row.innerHTML = `
+            <div class="p-mod-header" data-mod-id="${mod.id}" data-section-key="${sec.key}" data-section-type="${sec.type}">
+              ${mod.id !== 'off' ? `<button class="p-fav-btn" type="button" title="Favorite" data-fav-id="${mod.id}"><i class="fas fa-star"></i></button>` : ''}
+              <span class="p-status">off</span>
+              <div class="p-mod-icon">${iconHtml}</div>
+              <div class="p-mod-info">
+                <span class="p-mod-name">${mod.label}</span>
+                ${mod.description ? `<div class="p-mod-desc">${mod.description}</div>` : ''}
+                ${mod.id !== 'off' ? `<div class="p-mod-meta">v${mod.version || '1.0.0'} by ${mod.author || 'unknown'} • ${mod.licenseName || 'Mod'}</div>` : ''}
+                ${mod.id !== 'off' ? `<div class="p-mod-dev">id: <span>${mod.id}</span> • src: <span>${mod.source || 'built-in'}</span></div>` : ''}
+              </div>
+              ${mod.id !== 'off' ? `<div class="p-mod-collapse-btn"><i class="fas fa-chevron-down"></i></div>` : ''}
+            </div>
+            <div class="p-mod-body">
+              ${configHtml}
+            </div>
+          `;
+        }
+
+        pane.appendChild(row);
+      });
+    }
 
     content.appendChild(pane);
   });

@@ -28,6 +28,33 @@ function pickFolder() {
     input.click();
   });
 }
+async function loadAssets() {
+  const paths = {
+    arm: "assets/img/player_arm.png",
+    face: "assets/img/player_face.png",
+    foot: "assets/img/player_foot.png",
+    hair: "assets/img/player_hair.png",
+    head: "assets/img/player_head.png",
+    hand: "assets/img/player_hand.png",
+    leg: "assets/img/player_leg.png",
+    body: "assets/img/player.png",
+  };
+  const assets = {};
+  await Promise.all(
+    Object.entries(paths).map(
+      ([k, src]) =>
+        new Promise((res) => {
+          const img = new Image();
+          img.src = src;
+          img.onload = () => {
+            assets[k] = img;
+            res();
+          };
+        }),
+    ),
+  );
+  return assets;
+}
 
 class LoaderUI {
   constructor(
@@ -133,6 +160,7 @@ class LoaderUI {
     this._injectOpenButton();
     this._renderFavorites();
     this._renderDevMode();
+    this._initDevCard();
     this._applySearchFilter();
     this._updateStatsBar();
     this._applyPersistedModRuntime();
@@ -185,6 +213,7 @@ class LoaderUI {
     this._loadIcons();
     this._renderFavorites();
     this._renderDevMode();
+    this._initDevCard();
     this._applySearchFilter();
     this._updateStatsBar();
     this._setGreetText();
@@ -649,7 +678,6 @@ class LoaderUI {
 
   _onSectionTabChange() {
     const input = this.container.querySelector("#p-search");
-    // do not clear search; it is persisted and should apply across tabs
     this._applySearchFilter();
     this._scheduleUiSave();
   }
@@ -697,13 +725,15 @@ class LoaderUI {
     const existing = this.container.querySelector("#p-panel-settings-modal");
     if (existing) {
       existing.remove();
+      this.container.classList.remove("modal-open");
       return;
     }
+    this.container.classList.add("modal-open");
     const currentSurface =
       this.panelSurface || this.container.dataset.panelSurface || "glass";
     const modal = document.createElement("div");
     modal.id = "p-panel-settings-modal";
-    modal.className = "p-modal";
+    modal.className = "p-modal open";
     modal.innerHTML = `
       <div class="p-modal-card">
         <div class="p-modal-title">Customize panel</div>
@@ -726,6 +756,7 @@ class LoaderUI {
     modal.addEventListener("click", (e) => {
       if (e.target === modal) {
         modal.remove();
+        this.container.classList.remove("modal-open");
         return;
       }
       const btn = e.target.closest(".p-modal-btn");
@@ -740,6 +771,7 @@ class LoaderUI {
         this._scheduleUiSave?.();
       }
       modal.remove();
+      this.container.classList.remove("modal-open");
     });
     this.container.appendChild(modal);
   }
@@ -757,6 +789,10 @@ class LoaderUI {
     this.container.querySelectorAll(".p-mod-row").forEach((row) => {
       row.addEventListener("click", (e) => {
         if (e.target.closest(".p-fav-btn")) return;
+        if (e.target.closest(".p-mod-collapse-btn")) {
+          row.classList.toggle("p-expanded");
+          return;
+        }
         this._setSelectedRow(row.dataset.modId);
       });
     });
@@ -1013,7 +1049,9 @@ class LoaderUI {
     document.addEventListener("keydown", this._onDocKeydown);
 
     this.container.querySelectorAll(".p-mod-header").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (e) => {
+        if (e.target.closest(".p-fav-btn")) return;
+        if (e.target.closest(".p-mod-collapse-btn")) return;
         const { modId, sectionKey, sectionType } = btn.dataset;
         if (sectionType === "exclusive") {
           this.state[sectionKey] = modId;
@@ -1190,6 +1228,506 @@ class LoaderUI {
   _renderDevMode() {
     if (!this.container) return;
     this.container.classList.toggle("p-dev", !!this.devMode);
+    const devCat = this.container
+      .querySelector(".p-cat[data-idx] i.fa-terminal")
+      ?.closest(".p-cat");
+    if (devCat) devCat.style.display = this.devMode ? "flex" : "none";
+  }
+
+  async _initDevCard() {
+    const codeArea = this.container.querySelector("#p-dev-code");
+    const previewImg = this.container.querySelector("#p-dev-img");
+    if (!codeArea || !previewImg) return;
+    const asset = await loadAssets();
+    if (!asset) return;
+    const needAsset = [
+      "body", "leg", "head", "hair", "foot", "face", "arm", "hand",
+    ];
+    for (const name of needAsset) {
+      if (!asset[name]) { console.error(`Asset ${name} is required but not found`); return; }
+    }
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = 50; canvas.height = 75;
+    previewImg.style.imageRendering = "pixelated";
+    const base = { x: 24, y: 48 };
+    const layout = {
+      body: { dx: 0, dy: 0, key: "color_body" },
+      head: { dx: 0, dy: 0, key: "color_skin" },
+      hair: { dx: 0, dy: 0, key: "color_hair" },
+      face: { dx: 0, dy: 0 },
+      hand: { dx: 7, dy: -15, key: "color_skin", pair: { dx: -7, dy: -15 } },
+      arm:  { dx: 7, dy: -15, key: "color_body", pair: { dx: -7, dy: -15 } },
+      leg:  { dx: -4, dy: 0, key: "color_legs",  pair: { dx: 4,  dy: 0  } },
+      foot: { dx: -6, dy: -5, key: "color_feet",  pair: { dx: 6,  dy: -5  } },
+    };
+    const order = ["leg","body","arm","hand","head","hair","face","foot"];
+    const hexToInt = (h) => parseInt(h.replace("#",""), 16);
+    const state = { outfit: {
+      style_hair:  0,
+      color_body:  hexToInt("#111111"),
+      color_skin:  hexToInt("#c99b86"),
+      color_hair:  hexToInt("#47a53b"),
+      color_legs:  hexToInt("#154479"),
+      color_feet:  hexToInt("#5f3f11"),
+    } };
+    const timerIntervals = new Set();
+    const timerTimeouts  = new Set();
+    const timerRAFs      = new Set();
+    const clearTimers = () => {
+      for (const id of timerIntervals) globalThis.clearInterval(id);   timerIntervals.clear();
+      for (const id of timerTimeouts)  globalThis.clearTimeout(id);    timerTimeouts.clear();
+      for (const id of timerRAFs)      globalThis.cancelAnimationFrame(id); timerRAFs.clear();
+    };
+    const setIntervalMock  = (cb,ms,...a)=>{ const id=globalThis.setInterval(cb,ms,...a);  timerIntervals.add(id); return id; };
+    const clearIntervalMock= (id)=>{ timerIntervals.delete(id); globalThis.clearInterval(id); };
+    const setTimeoutMock   = (cb,ms,...a)=>{ const id=globalThis.setTimeout(cb,ms,...a);   timerTimeouts.add(id);  return id; };
+    const clearTimeoutMock = (id)=>{ timerTimeouts.delete(id);  globalThis.clearTimeout(id); };
+    const rafMock          = (cb)=>{ const id=globalThis.requestAnimationFrame(cb); timerRAFs.add(id); return id; };
+    const cafMock          = (id)=>{ timerRAFs.delete(id); globalThis.cancelAnimationFrame(id); };
+    const logEl = this.container.querySelector("#p-dev-log");
+    const devLog = (level, args) => {
+      if (!logEl) return;
+      const entry = document.createElement("div");
+      entry.className = `p-dev-log-entry p-dev-log-${level}`;
+      const icon = level === "error" ? "fa-times-circle" : level === "warn" ? "fa-exclamation-triangle" : "fa-chevron-right";
+      const text = args.map(a => {
+        try { return typeof a === "object" ? JSON.stringify(a) : String(a); } catch { return String(a); }
+      }).join(" ");
+      entry.innerHTML = `<i class="fas ${icon}"></i><span>${text}</span>`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+    const devConsole = {
+      log:   (...a) => { devLog("log",   a); globalThis.console.log(...a);   },
+      warn:  (...a) => { devLog("warn",  a); globalThis.console.warn(...a);  },
+      error: (...a) => { devLog("error", a); globalThis.console.error(...a); },
+      info:  (...a) => { devLog("log",   a); globalThis.console.info(...a);  },
+      debug: (...a) => { devLog("log",   a); globalThis.console.debug(...a); },
+    };
+    const clearLog = () => { if (logEl) logEl.innerHTML = ""; };
+    const virtualFS   = new Map();
+    const moduleCache = new Map();
+    const resolvePath = (from, dep) => {
+      if (!dep.startsWith("./") && !dep.startsWith("../")) return null;
+      const base = from.includes("/") ? from.split("/").slice(0,-1) : [];
+      for (const part of dep.split("/")) {
+        if (part === "..") base.pop();
+        else if (part !== ".") base.push(part);
+      }
+      return base.join("/");
+    };
+    let _requireVirtual;
+    const evalVirtualModule = (filePath, code) => {
+      const m = { exports: {} };
+      try {
+        const fromPath = filePath;
+        const g = globalThis;
+        const globals = {
+          undefined, NaN, Infinity,
+          isNaN:g.isNaN, isFinite:g.isFinite,
+          parseInt:g.parseInt, parseFloat:g.parseFloat,
+          decodeURI:g.decodeURI, encodeURI:g.encodeURI,
+          decodeURIComponent:g.decodeURIComponent, encodeURIComponent:g.encodeURIComponent,
+          JSON:g.JSON, Math:g.Math, Date:g.Date, RegExp,
+          Object, Array, String, Number, Boolean, Symbol, BigInt,
+          Map, Set, WeakMap, WeakSet, WeakRef,
+          Promise, Error, TypeError, RangeError, SyntaxError, ReferenceError, URIError, EvalError,
+          ArrayBuffer, DataView, Proxy, Reflect,
+          Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array,
+          Int32Array, Uint32Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array,
+          console: devConsole,
+          window:g.window, document:g.document, navigator:g.navigator,
+          location:g.location, history:g.history,
+          performance:g.performance, crypto:g.crypto,
+          fetch:g.fetch?.bind(g), XMLHttpRequest:g.XMLHttpRequest, WebSocket:g.WebSocket,
+          URL:g.URL, URLSearchParams:g.URLSearchParams,
+          Blob:g.Blob, File:g.File, FileReader:g.FileReader, FormData:g.FormData,
+          TextEncoder:g.TextEncoder, TextDecoder:g.TextDecoder,
+          AbortController:g.AbortController, AbortSignal:g.AbortSignal,
+          Event:g.Event, CustomEvent:g.CustomEvent, EventTarget:g.EventTarget,
+          MutationObserver:g.MutationObserver, IntersectionObserver:g.IntersectionObserver,
+          ResizeObserver:g.ResizeObserver,
+          localStorage:g.localStorage, sessionStorage:g.sessionStorage,
+          queueMicrotask:g.queueMicrotask?.bind(g),
+          structuredClone:g.structuredClone?.bind(g),
+          atob:g.atob?.bind(g), btoa:g.btoa?.bind(g),
+          Worker:g.Worker, Audio:g.Audio, Image:g.Image,
+          requestIdleCallback:g.requestIdleCallback?.bind(g),
+          cancelIdleCallback:g.cancelIdleCallback?.bind(g),
+          require:(dep)=>_requireVirtual(dep, fromPath),
+          module:m, exports:m.exports,
+          setInterval:setIntervalMock, clearInterval:clearIntervalMock,
+          setTimeout:setTimeoutMock,   clearTimeout:clearTimeoutMock,
+          requestAnimationFrame:rafMock, cancelAnimationFrame:cafMock,
+        };
+        new Function(...Object.keys(globals), code)(...Object.values(globals));
+      } catch(e) { console.error(`[dev vfs] ${filePath}:`, e); }
+      return m.exports;
+    };
+    _requireVirtual = (name, fromPath="") => {
+      if (name === "@interstellar/StellarAPI") return api;
+      if (!name.startsWith("./") && !name.startsWith("../")) throw new Error(`Unknown module: ${name}`);
+      const base = resolvePath(fromPath, name);
+      for (const c of [base, base+".js", base+"/index.js"].filter(Boolean)) {
+        if (!virtualFS.has(c)) continue;
+        if (moduleCache.has(c)) return moduleCache.get(c);
+        const exp = evalVirtualModule(c, virtualFS.get(c));
+        moduleCache.set(c, exp); return exp;
+      }
+      throw new Error(`Module not found: ${name} (resolved: ${base})`);
+    };
+    const MAIN_TAB = "__main__";
+    const tabsData  = new Map();
+    tabsData.set(MAIN_TAB, { content: "", label: "entry.js", dirty: false });
+    let activeTab = MAIN_TAB;
+    const tabBar   = this.container.querySelector("#p-dev-tabs");
+    const saveBtn  = this.container.querySelector("#p-dev-save-file");
+    const errorEl  = this.container.querySelector("#p-dev-error");
+    const updateSaveBtn = () => {
+      if (!saveBtn) return;
+      const isFile = activeTab !== MAIN_TAB;
+      saveBtn.disabled = !isFile;
+      saveBtn.title = isFile ? `Save to ${activeTab}` : "No file selected";
+    };
+    const renderTabBar = () => {
+      if (!tabBar) return;
+      tabBar.innerHTML = "";
+      for (const [path, tab] of tabsData.entries()) {
+        const t = document.createElement("span");
+        t.className = "p-dev-tab" + (path === activeTab ? " p-dev-tab-active" : "");
+        const isMain = path === MAIN_TAB;
+        const dirty  = tab.dirty && !isMain;
+        t.innerHTML  = `<span class="p-dev-tab-name">${dirty ? '<span class="p-dev-tab-dot"></span>' : ""}${tab.label}</span>`
+          + (isMain ? "" : `<span class="p-dev-tab-x" title="Close tab"><i class="fas fa-times"></i></span>`);
+        t.querySelector(".p-dev-tab-name").addEventListener("click", () => switchTab(path));
+        t.querySelector(".p-dev-tab-x")?.addEventListener("click", (e) => { e.stopPropagation(); closeTab(path); });
+        tabBar.appendChild(t);
+      }
+    };
+    const switchTab = (path) => {
+      if (!tabsData.has(path)) return;
+      if (tabsData.has(activeTab)) {
+        tabsData.get(activeTab).content = codeArea.value;
+      }
+      activeTab = path;
+      codeArea.value = tabsData.get(path).content;
+      updateSaveBtn();
+      renderTabBar();
+      updatePreview();
+    };
+    const openFileTab = (fullPath) => {
+      if (!tabsData.has(fullPath)) {
+        tabsData.set(fullPath, {
+          content: virtualFS.get(fullPath) ?? "",
+          label: fullPath.includes("/") ? fullPath.split("/").pop() : fullPath,
+          dirty: false,
+        });
+      }
+      switchTab(fullPath);
+    };
+    const closeTab = (path) => {
+      if (path === MAIN_TAB && tabsData.size <= 1) return;
+      tabsData.delete(path);
+      if (activeTab === path) {
+        const keys = [...tabsData.keys()];
+        switchTab(keys[keys.length - 1] ?? MAIN_TAB);
+      } else {
+        renderTabBar();
+      }
+    };
+    codeArea.addEventListener("input", () => {
+      if (tabsData.has(activeTab)) {
+        const tab = tabsData.get(activeTab);
+        const isDirty = activeTab !== MAIN_TAB && codeArea.value !== (virtualFS.get(activeTab) ?? "");
+        if (tab.dirty !== isDirty) { tab.dirty = isDirty; renderTabBar(); }
+      }
+    });
+    const treeEl = this.container.querySelector("#p-dev-tree");
+    const renderTree = () => {
+      if (!treeEl) return;
+      treeEl.innerHTML = "";
+      if (virtualFS.size === 0) {
+        treeEl.innerHTML = `<span class="p-dev-tree-empty">no files</span>`;
+        return;
+      }
+      const folders = new Map();
+      for (const path of [...virtualFS.keys()].sort()) {
+        const slash = path.lastIndexOf("/");
+        const folder = slash >= 0 ? path.slice(0, slash) : "";
+        const file   = slash >= 0 ? path.slice(slash+1)  : path;
+        if (!folders.has(folder)) folders.set(folder, []);
+        folders.get(folder).push(file);
+      }
+      for (const [folder, files] of [...folders.entries()].sort()) {
+        if (folder) {
+          const fe = document.createElement("span");
+          fe.className = "p-dev-tree-folder";
+          fe.title = folder;
+          fe.innerHTML = `<i class="fas fa-folder"></i> ${folder.split("/").pop()}`;
+          treeEl.appendChild(fe);
+        }
+        for (const file of files.sort()) {
+          const fullPath = folder ? `${folder}/${file}` : file;
+          const fie = document.createElement("span");
+          fie.className = "p-dev-tree-file" + (folder ? " p-dev-tree-nested" : "")
+                        + (tabsData.has(fullPath) ? " p-dev-tree-open" : "");
+          fie.title = fullPath; fie.dataset.path = fullPath;
+          fie.innerHTML = `<i class="fas fa-file-code"></i> ${file}`;
+          fie.addEventListener("click", () => openFileTab(fullPath));
+          treeEl.appendChild(fie);
+        }
+      }
+    };
+    const importFolderBtn = this.container.querySelector("#p-dev-import-folder");
+    if (importFolderBtn) {
+      importFolderBtn.addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "file"; input.webkitdirectory = true; input.multiple = true;
+        input.onchange = async () => {
+          virtualFS.clear(); moduleCache.clear();
+          for (const f of input.files) {
+            if (!/\.(js|mjs|cjs|json)$/.test(f.name)) continue;
+            virtualFS.set(f.webkitRelativePath.split("/").slice(1).join("/"), await f.text());
+          }
+          for (const path of tabsData.keys()) {
+            if (path !== MAIN_TAB && !virtualFS.has(path)) tabsData.delete(path);
+          }
+          if (!tabsData.has(activeTab)) activeTab = MAIN_TAB;
+          renderTree(); renderTabBar(); updateSaveBtn();
+        };
+        input.click();
+      });
+    }
+    const importZipBtn = this.container.querySelector("#p-dev-import-zip");
+    if (importZipBtn) {
+      importZipBtn.addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "file"; input.accept = ".zip";
+        input.onchange = async () => {
+          if (!input.files[0]) return;
+          try {
+            const { unzip } = require("./vendor/fflate");
+            const entries = await unzip(new Uint8Array(await input.files[0].arrayBuffer()));
+            virtualFS.clear(); moduleCache.clear();
+            const td = new TextDecoder("utf-8", { fatal: false });
+            for (const [path, data] of Object.entries(entries)) {
+              if (path.endsWith("/")) continue;
+              const parts = path.split("/");
+              const rel = parts.length > 1 ? parts.slice(1).join("/") : path;
+              if (!/\.(js|mjs|cjs|json)$/.test(rel)) continue;
+              virtualFS.set(rel, td.decode(data));
+            }
+            for (const path of tabsData.keys()) {
+              if (path !== MAIN_TAB && !virtualFS.has(path)) tabsData.delete(path);
+            }
+            if (!tabsData.has(activeTab)) activeTab = MAIN_TAB;
+            renderTree(); renderTabBar(); updateSaveBtn();
+          } catch(e) { console.error("[dev] zip import error:", e); }
+        };
+        input.click();
+      });
+    }
+    if (saveBtn) {
+      saveBtn.addEventListener("click", () => {
+        if (activeTab === MAIN_TAB) return;
+        const content = codeArea.value;
+        virtualFS.set(activeTab, content);
+        moduleCache.delete(activeTab);
+        const tab = tabsData.get(activeTab);
+        if (tab) { tab.content = content; tab.dirty = false; }
+        const blob = new Blob([content], { type: "text/javascript" });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href = url;
+        a.download = activeTab.includes("/") ? activeTab.split("/").pop() : activeTab;
+        a.click();
+        URL.revokeObjectURL(url);
+        renderTabBar(); renderTree();
+        updatePreview();
+      });
+    }
+    const clearLogBtn = this.container.querySelector("#p-dev-clear-log");
+    if (clearLogBtn) clearLogBtn.addEventListener("click", clearLog);
+    const tint = (img, colorInt) => {
+      const c = document.createElement("canvas");
+      const tCtx = c.getContext("2d");
+      c.width = img.naturalWidth || img.width;
+      c.height = img.naturalHeight || img.height;
+      tCtx.drawImage(img, 0, 0);
+      const r = (colorInt >> 16) & 255, g = (colorInt >> 8) & 255, b = colorInt & 255;
+      tCtx.fillStyle = `rgb(${r},${g},${b})`;
+      tCtx.globalCompositeOperation = "multiply";
+      tCtx.fillRect(0, 0, c.width, c.height);
+      tCtx.globalCompositeOperation = "destination-in";
+      tCtx.drawImage(img, 0, 0);
+      tCtx.globalCompositeOperation = "source-over";
+      return c;
+    };
+    const drawPart = (name, info, outfit) => {
+      const img = asset[name]; if (!img) return;
+      if (name === "hair" && (outfit.style_hair ?? 0) === 0) return;
+      const color = info.key ? (outfit[info.key] ?? null) : null;
+      const drawImg = color != null ? tint(img, color) : img;
+      const x = base.x + info.dx - (img.naturalWidth  || img.width)  / 2;
+      const y = base.y + info.dy - (img.naturalHeight || img.height) / 2;
+      ctx.drawImage(drawImg, x, y);
+      if (info.pair) {
+        ctx.drawImage(drawImg,
+          base.x + info.pair.dx - (img.naturalWidth  || img.width)  / 2,
+          base.y + info.pair.dy - (img.naturalHeight || img.height) / 2,
+        );
+      }
+    };
+    const render = (outfit) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false;
+      for (const name of order) drawPart(name, layout[name], outfit);
+      previewImg.src = canvas.toDataURL("image/png");
+    };
+    const api = {
+      default: {
+        sendPacket: (packet) => {
+          if (packet?.outfit) state.outfit = { ...state.outfit, ...packet.outfit };
+          render(state.outfit);
+        },
+      },
+    };
+
+    const defaultCode = `\
+const api = require("@interstellar/StellarAPI");
+
+class StraightMod {
+  constructor() {
+    this.index = 0;
+    this.appearance = {};
+    this.colorParts = [
+      "color_body","color_legs","color_feet","color_hair","color_skin",
+    ];
+    this.interval = null;
+    this.speed = 10;
+  }
+
+  next() {
+    this.index = (this.index + 1) % this.colorParts.length;
+    const p = this.colorParts[this.index];
+    const time = Date.now() / 25;
+    const intensity = Math.round(Math.sin(0.3 * time) * 127 + 128);
+    const color = (intensity << 16) | (intensity << 8) | intensity;
+    this.appearance[p] = color;
+    api.default.sendPacket({ type: 7, outfit: { style_hair: 1, ...this.appearance } });
+  }
+
+  start() {
+    this.stop();
+    this.interval = setInterval(() => {
+      if (typeof Interstellar === "undefined" || !Interstellar.ingame) return;
+      this.next();
+    }, this.speed);
+  }
+
+  stop() {
+    if (this.interval) { clearInterval(this.interval); this.interval = null; }
+  }
+}
+
+exports.default = StraightMod;`;
+    tabsData.get(MAIN_TAB).content = defaultCode;
+    codeArea.value = defaultCode;
+
+    let autoRun = true;
+    const autoRunCb = this.container.querySelector("#p-dev-autorun");
+    if (autoRunCb) autoRunCb.addEventListener("change", () => { autoRun = autoRunCb.checked; });
+
+    const showError = (msg) => {
+      if (!errorEl) return;
+      errorEl.textContent = msg;
+      errorEl.style.display = msg ? "block" : "none";
+    };
+
+    const updatePreview = () => {
+      clearTimers(); moduleCache.clear(); clearLog(); showError("");
+      const code = codeArea.value;
+      const fromPath = activeTab === MAIN_TAB ? "" : activeTab;
+      const g = globalThis;
+      try {
+        const moduleObj = { exports: {} };
+        const globals = {
+          undefined, NaN, Infinity,
+          isNaN:g.isNaN, isFinite:g.isFinite,
+          parseInt:g.parseInt, parseFloat:g.parseFloat,
+          decodeURI:g.decodeURI, encodeURI:g.encodeURI,
+          decodeURIComponent:g.decodeURIComponent, encodeURIComponent:g.encodeURIComponent,
+          JSON:g.JSON, Math:g.Math, Date:g.Date, RegExp,
+          Object, Array, String, Number, Boolean, Symbol, BigInt,
+          Map, Set, WeakMap, WeakSet, WeakRef,
+          Promise, Error, TypeError, RangeError, SyntaxError, ReferenceError, URIError, EvalError,
+          ArrayBuffer, DataView, Proxy, Reflect,
+          Int8Array, Uint8Array, Uint8ClampedArray, Int16Array, Uint16Array,
+          Int32Array, Uint32Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array,
+          console:devConsole,
+          window:g.window, document:g.document, navigator:g.navigator,
+          location:g.location, history:g.history,
+          performance:g.performance, crypto:g.crypto,
+          fetch:g.fetch?.bind(g), XMLHttpRequest:g.XMLHttpRequest, WebSocket:g.WebSocket,
+          URL:g.URL, URLSearchParams:g.URLSearchParams,
+          Blob:g.Blob, File:g.File, FileReader:g.FileReader, FormData:g.FormData,
+          TextEncoder:g.TextEncoder, TextDecoder:g.TextDecoder,
+          AbortController:g.AbortController, AbortSignal:g.AbortSignal,
+          Event:g.Event, CustomEvent:g.CustomEvent, EventTarget:g.EventTarget,
+          MutationObserver:g.MutationObserver, IntersectionObserver:g.IntersectionObserver,
+          ResizeObserver:g.ResizeObserver,
+          localStorage:g.localStorage, sessionStorage:g.sessionStorage,
+          queueMicrotask:g.queueMicrotask?.bind(g),
+          structuredClone:g.structuredClone?.bind(g),
+          atob:g.atob?.bind(g), btoa:g.btoa?.bind(g),
+          Worker:g.Worker, Audio:g.Audio, Image:g.Image,
+          requestIdleCallback:g.requestIdleCallback?.bind(g),
+          cancelIdleCallback:g.cancelIdleCallback?.bind(g),
+          require:(dep)=>_requireVirtual(dep, fromPath),
+          module:moduleObj, exports:moduleObj.exports,
+          Interstellar:{ ingame: true },
+          setInterval:setIntervalMock, clearInterval:clearIntervalMock,
+          setTimeout:setTimeoutMock,   clearTimeout:clearTimeoutMock,
+          requestAnimationFrame:rafMock, cancelAnimationFrame:cafMock,
+        };
+        new Function(...Object.keys(globals), code)(...Object.values(globals));
+        const mod = moduleObj.exports?.default ?? moduleObj.exports;
+        if (typeof mod === "function") {
+          const inst = new mod();
+          if (typeof inst.start === "function") inst.start();
+          if (typeof inst.next  === "function") inst.next();
+          else render(state.outfit);
+        } else {
+          render(state.outfit);
+        }
+      } catch(e) {
+        showError(e.message);
+        devLog("error", [e.message]);
+      }
+    };
+    codeArea.addEventListener("input", () => { if (autoRun) updatePreview(); });
+    const runBtn = this.container.querySelector("#p-dev-run");
+    if (runBtn) runBtn.addEventListener("click", updatePreview);
+    codeArea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        updatePreview();
+      }
+      if (e.key === "s" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (activeTab !== MAIN_TAB) saveBtn?.click();
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const s = codeArea.selectionStart, en = codeArea.selectionEnd;
+        codeArea.value = codeArea.value.slice(0,s) + "  " + codeArea.value.slice(en);
+        codeArea.selectionStart = codeArea.selectionEnd = s + 2;
+        if (autoRun) updatePreview();
+      }
+    });
+
+    renderTabBar(); updateSaveBtn(); updatePreview();
   }
 
   _updateStatsBar() {

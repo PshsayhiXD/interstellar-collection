@@ -21,10 +21,8 @@ const StellarAPI = (() => {
 })();
 
 function resolveZipPath(fromPath, toPath) {
-  // Get the directory of the requiring file
   const dir = fromPath.includes("/") ? fromPath.slice(0, fromPath.lastIndexOf("/")) : "";
   const joined = dir ? `${dir}/${toPath}` : toPath;
-  // Resolve . and .. segments
   const parts = joined.split("/");
   const resolved = [];
   for (const part of parts) {
@@ -36,7 +34,6 @@ function resolveZipPath(fromPath, toPath) {
 }
 
 function resolveZipFile(record, path) {
-  // Try exact path, then with .js extension, then as a directory index
   return (
     findFile(record, path) ||
     findFile(record, `${path}.js`) ||
@@ -52,14 +49,9 @@ function makeRequire(record, fromPath, cache) {
       return StellarAPI;
     }
 
-    // Only relative paths are allowed for zip-internal requires
-    if (!name.startsWith(".")) {
-      throw new Error(`require not supported in imported mods: ${name}`);
-    }
-
+    if (!name.startsWith(".")) throw new Error(`require not supported in imported mods: ${name}`);
     const resolved = resolveZipPath(fromPath, name);
 
-    // Return cached module exports if already evaluated
     if (cache.has(resolved)) return cache.get(resolved);
 
     const f = resolveZipFile(record, resolved);
@@ -67,7 +59,6 @@ function makeRequire(record, fromPath, cache) {
       throw new Error(`Cannot find module '${name}' in zip (resolved: ${resolved})`);
     }
 
-    // Seed cache before evaluating to handle circular requires
     const exportsObj = {};
     const moduleObj = { exports: exportsObj };
     cache.set(resolved, exportsObj);

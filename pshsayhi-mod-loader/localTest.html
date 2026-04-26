@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <title>pshsayhi-mod-loader local test</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --line: #334155;
+      --accent: #38bdf8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg) 50%);
+      color: var(--text);
+      padding: 12px 12px 360px;
+    }
+
+    #topbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel) 90%, transparent);
+      backdrop-filter: blur(8px);
+    }
+
+    #boot-status {
+      font-weight: 700;
+      margin-right: 8px;
+    }
+
+    #boot-status.ok {
+      color: var(--ok);
+    }
+
+    #boot-status.err {
+      color: var(--err);
+    }
+
+    #boot-status.info {
+      color: var(--warn);
+    }
+
+    button,
+    input {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+    }
+
+    #packet-panel {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      width: min(560px, calc(100vw - 24px));
+      max-height: min(360px, 48vh);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel) 96%, transparent);
+      backdrop-filter: blur(8px);
+      display: grid;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+      overflow: hidden;
+      z-index: 2147483647;
+    }
+
+    #packet-panel h2 {
+      margin: 0;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      letter-spacing: 0.02em;
+      color: var(--muted);
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    #require-path {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    #require-result {
+      margin: 0;
+      padding: 8px 10px;
+      min-height: 44px;
+      border-bottom: 1px solid var(--line);
+      white-space: pre-wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #packet-list {
+      margin: 0;
+      padding: 8px 12px 12px 28px;
+      overflow: auto;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    #packet-list li {
+      margin: 0 0 6px;
+    }
+
+    .button-container {
+      margin: 8px 0 0;
+      min-height: 32px;
+    }
+
+    .error-stack {
+      margin-top: 12px;
+      border: 1px solid var(--err);
+      border-radius: 8px;
+      padding: 10px;
+      background: color-mix(in srgb, #450a0a 84%, transparent);
+      white-space: pre-wrap;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="topbar">
+    <strong>Local Test</strong>
+    <span id="boot-status" class="info">Booting...</span>
+    <button id="toggle-ingame" type="button">Interstellar.ingame: true</button>
+    <button id="clear-packets" type="button">Clear packet log</button>
+  </div>
+
+  <div class="button-container"></div>
+
+  <section id="packet-panel" aria-label="Packet log">
+    <h2>@interstellar/StellarAPI packet log</h2>
+    <div class="row">
+      <input id="require-path" type="text" value="./loader.js" aria-label="Module path">
+      <button id="test-require" type="button">Test require path</button>
+    </div>
+    <pre id="require-result">Try a path test, for example: ./loader.js or ./does-not-exist</pre>
+    <ol id="packet-list"></ol>
+  </section>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const statusEl = document.getElementById("boot-status");
+      const toggleIngameEl = document.getElementById("toggle-ingame");
+      const clearPacketsEl = document.getElementById("clear-packets");
+      const packetListEl = document.getElementById("packet-list");
+      const requireInputEl = document.getElementById("require-path");
+      const requireResultEl = document.getElementById("require-result");
+
+      function setStatus(message, kind) {
+        statusEl.textContent = message;
+        statusEl.className = kind || "info";
+      }
+
+      function nowIso() {
+        return new Date().toISOString();
+      }
+
+      function formatValue(value) {
+        try {
+          return JSON.stringify(value);
+        } catch {
+          return String(value);
+        }
+      }
+
+      window.Interstellar = { ingame: true };
+
+      function syncIngameLabel() {
+        toggleIngameEl.textContent = "Interstellar.ingame: " + String(window.Interstellar.ingame);
+      }
+
+      toggleIngameEl.addEventListener("click", function () {
+        window.Interstellar.ingame = !window.Interstellar.ingame;
+        syncIngameLabel();
+      });
+
+      const packetLog = [];
+      window.__packetLog = packetLog;
+
+      function renderPacket(entry) {
+        const row = document.createElement("li");
+        row.textContent = entry.time + " " + formatValue(entry.packet);
+        packetListEl.appendChild(row);
+        packetListEl.scrollTop = packetListEl.scrollHeight;
+      }
+
+      function pushPacket(packet) {
+        const entry = { time: nowIso(), packet: packet };
+        packetLog.push(entry);
+        if (packetLog.length > 200) packetLog.shift();
+        renderPacket(entry);
+      }
+
+      clearPacketsEl.addEventListener("click", function () {
+        packetLog.length = 0;
+        packetListEl.innerHTML = "";
+      });
+
+      const externals = {
+        "@interstellar/InterstellarScriptingMod": {
+          default: class InterstellarScriptingMod { },
+        },
+        "@interstellar/StellarAPI": {
+          default: {
+            sendPacket: function (packet) {
+              pushPacket(packet);
+              console.log("[localTest] sendPacket", packet);
+            },
+            playerName: function () {
+              return "Local";
+            },
+          },
+        },
+      };
+
+      const moduleCache = new Map();
+      const sourceCache = new Map();
+
+      const baseUrl = new URL("./", window.location.href).href;
+
+      function isExternalModule(name) {
+        return Object.prototype.hasOwnProperty.call(externals, name);
+      }
+
+      function normalizeUrl(urlLike) {
+        const url = new URL(urlLike, window.location.href);
+        url.hash = "";
+        return url.href;
+      }
+
+      function loadSourceSync(moduleId) {
+        if (!moduleId.endsWith(".png") && !moduleId.endsWith(".js")) {
+          if (!moduleId.endsWith(".js")) moduleId += ".js";
+          else moduleId =+ ".png";
+        }
+        if (sourceCache.has(moduleId)) return sourceCache.get(moduleId);
+        const xhr = new XMLHttpRequest();
+        try {
+          xhr.open("GET", moduleId, false);
+          xhr.send(null);
+        } catch {
+          sourceCache.set(moduleId, null);
+          return null;
+        }
+        const ok =
+          (xhr.status >= 200 && xhr.status < 300) ||
+          xhr.status === 304 ||
+          (xhr.status === 0 && typeof xhr.responseText === "string" && xhr.responseText.length > 0);
+        const source = ok ? String(xhr.responseText || "") : null;
+        sourceCache.set(moduleId, source);
+        return source;
+      }
+      function buildCandidates(request, parentId) {
+        const parent = parentId || baseUrl;
+        const absolute = normalizeUrl(new URL(request, parent).href);
+        if (/\.js$/i.test(request)) return [absolute];
+        return [
+          absolute,
+          normalizeUrl(new URL(request + ".js", parent).href),
+          normalizeUrl(new URL(request + "/index.js", parent).href),
+        ];
+      }
+      function resolveModuleId(request, parentId) {
+        if (isExternalModule(request)) return { type: "external", id: request };
+        if (
+          !request.startsWith("./") &&
+          !request.startsWith("../") &&
+          !request.startsWith("/")
+        ) throw new Error("Unsupported module identifier: " + request);
+        const candidates = buildCandidates(request, parentId);
+        const seen = new Set();
+        for (const candidate of candidates) {
+          if (seen.has(candidate)) continue;
+          seen.add(candidate);
+          if (loadSourceSync(candidate) !== null) {
+            return { type: "local", id: candidate };
+          }
+        }
+        throw new Error(
+          "Cannot find module '" +
+          request +
+          "' from '" +
+          String(parentId || baseUrl) +
+          "'"
+        );
+      }
+
+      function makeRequire(parentId) {
+        return function requireShim(request) {
+          const resolved = resolveModuleId(String(request || ""), parentId);
+          if (resolved.type === "external") return externals[resolved.id];
+          return evaluateModule(resolved.id);
+        };
+      }
+
+      function evaluateModule(moduleId) {
+        if (moduleCache.has(moduleId)) return moduleCache.get(moduleId).exports;
+        const source = loadSourceSync(moduleId);
+        if (source === null) throw new Error("Failed to load source for " + moduleId);
+        const module = { id: moduleId, exports: {} };
+        moduleCache.set(moduleId, module);
+        const localRequire = makeRequire(moduleId);
+        const filename = moduleId;
+        const dirname = new URL("./", moduleId).href;
+        try {
+          const factory = new Function(
+            "require",
+            "exports",
+            "module",
+            "__filename",
+            "__dirname",
+            source + "\n//# sourceURL=" + moduleId
+          );
+          factory(localRequire, module.exports, module, filename, dirname);
+          return module.exports;
+        } catch (error) {
+          moduleCache.delete(moduleId);
+          throw error;
+        }
+      }
+      const rootRequire = makeRequire(baseUrl);
+      window.__localRequire = rootRequire;
+      window.require = rootRequire;
+      document.getElementById("test-require").addEventListener("click", function () {
+        const target = String(requireInputEl.value || "").trim();
+        if (!target) {
+          requireResultEl.textContent = "Provide a module path to test.";
+          return;
+        }
+        try {
+          const exp = rootRequire(target);
+          const keys = exp && typeof exp === "object" ? Object.keys(exp) : [];
+          requireResultEl.textContent =
+            "OK: " + target + "\nExport keys: " + (keys.length ? keys.join(", ") : "(none)");
+        } catch (error) {
+          const msg = error && error.message ? error.message : String(error);
+          requireResultEl.textContent = "ERROR: " + msg;
+        }
+      });
+      async function bootLoader() {
+        try {
+          setStatus("Loading ./loader.js ...", "info");
+          const entry = rootRequire("./loader.js");
+          const LoaderClass = entry && (entry.default || entry);
+          if (typeof LoaderClass !== "function") throw new Error("loader.js did not export a class constructor");
+          const instance = new LoaderClass();
+          window.__loader = instance;
+          if (typeof instance.load === "function") await instance.load();
+          setStatus("Loader booted successfully.", "ok");
+        } catch (error) {
+          const msg = error && error.message ? error.message : String(error);
+          setStatus("Boot failed: " + msg, "err");
+          console.error("[localTest] Boot failed", error);
+          const stack = document.createElement("pre");
+          stack.className = "error-stack";
+          stack.textContent = error && error.stack ? error.stack : msg;
+          document.body.appendChild(stack);
+        }
+      }
+
+      syncIngameLabel();
+      bootLoader();
+    })();
+  </script>
+</body>
+
+</html>
