@@ -738,12 +738,57 @@ const STYLES = `
 
   .p-config {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 8px;
     max-height: 220px;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 2px;
+  }
+  .p-config-group {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 140px;
+    background: rgba(0,0,0,0.15);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .p-config-group-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 6px 10px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    transition: color 0.15s, background 0.15s;
+    background: rgba(255,255,255,0.02);
+  }
+  .p-config-group-title:hover {
+    color: rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.04);
+  }
+  .p-config-group-title::-webkit-details-marker { display: none; }
+  .p-config-group-title::after {
+    content: "\f078";
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    font-size: 8px;
+    margin-left: auto;
+    transition: transform 0.2s;
+  }
+  .p-config-group[open] > .p-config-group-title::after { transform: rotate(180deg); }
+  .p-config-group-body {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
   .p-dev-section {
     border: 1px solid rgba(255,255,255,0.05);

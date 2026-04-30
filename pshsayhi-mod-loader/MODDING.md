@@ -190,7 +190,12 @@ Use `"outfit"` for mods that change the player's appearance, `"extras"` for anyt
 
 ## Config System
 
-A mod can expose user-adjustable settings via the `config` array in `metadata.js`. Currently the only supported control type is `"range"` (a slider).
+Mods can expose user settings using the config array in metadata.js.
+
+Supported input types:
+- `"range"` → slider
+- `"checkbox"` → toggle switch
+- Any valid HTML `<input type="...">` → fallback input
 
 ```js
 config: [
@@ -223,6 +228,14 @@ constructor() {
   this.speed = 85; // match metadata.js default
 }
 ```
+
+Groups:
+- Configs are grouped using:
+
+```js
+group: "Smooth"
+```
+- If no group is provided, it falls back to General
 
 ---
 

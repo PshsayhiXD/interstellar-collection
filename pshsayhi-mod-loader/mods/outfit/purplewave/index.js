@@ -2,7 +2,13 @@ const api = require("@interstellar/StellarAPI");
 
 class PurpleWaveMod {
   constructor() {
-    this.index = 0;
+    this.speed = 16;
+    this.hueBase = 0.78;
+    this.hueRange = 0.08;
+    this.hueSpeed = 0.0015;
+    this.waveSpread = 0.9;
+    this.saturation = 0.9;
+    this.value = 1;
     this.appearance = {};
     this.colorParts = [
       "color_body",
@@ -11,8 +17,9 @@ class PurpleWaveMod {
       "color_hair",
       "color_skin",
     ];
-    this.interval = null;
-    this.speed = 85;
+    this.running = false;
+    this.rafId = null;
+    this.lastTick = 0;
   }
 
   hsvToRgb(h, s, v) {
@@ -28,18 +35,24 @@ class PurpleWaveMod {
     else if (i % 6 === 3) [r, g, b] = [p, q, v];
     else if (i % 6 === 4) [r, g, b] = [t, p, v];
     else [r, g, b] = [v, p, q];
-    return (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+    return (Math.round(r * 255) << 16) |
+           (Math.round(g * 255) << 8) |
+           Math.round(b * 255);
   }
 
-  next() {
-    this.index = (this.index + 1) % this.colorParts.length;
-    const p = this.colorParts[this.index];
-    const time = Date.now() / 300;
-    const base = 0.78;
-    const range = 0.08;
-    const hue = base + Math.sin(time) * range;
-    const color = this.hsvToRgb(hue, 0.9, 1);
-    this.appearance[p] = color;
+  update(now) {
+    if (now - this.lastTick < this.speed) return;
+    this.lastTick = now;
+    for (let i = 0; i < this.colorParts.length; i++) {
+      const part = this.colorParts[i];
+      const phase = now * this.hueSpeed + i * this.waveSpread;
+      const hue = this.hueBase + Math.sin(phase) * this.hueRange;
+      this.appearance[part] = this.hsvToRgb(
+        hue,
+        this.saturation,
+        this.value
+      );
+    }
     api.default.sendPacket({
       type: 7,
       outfit: {
@@ -51,17 +64,20 @@ class PurpleWaveMod {
 
   start() {
     this.stop();
-    this.interval = setInterval(() => {
-      if (typeof Interstellar === "undefined" || !Interstellar.ingame) return;
-      this.next();
-    }, this.speed);
+    this.running = true;
+    this.lastTick = 0;
+    const loop = (now) => {
+      if (!this.running) return;
+      if (typeof Interstellar !== "undefined" && Interstellar.ingame) this.update(now);
+      this.rafId = requestAnimationFrame(loop);
+    };
+    this.rafId = requestAnimationFrame(loop);
   }
 
   stop() {
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
-    }
+    this.running = false;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.rafId = null;
   }
 }
 

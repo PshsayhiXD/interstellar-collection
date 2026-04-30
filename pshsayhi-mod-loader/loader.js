@@ -105,11 +105,11 @@ class PshsayhiLoader extends script.default {
       const { id, key, value: val } = value || {};
       const inst = this.modsMap[id];
       if (!inst) return;
-      if (key === "speed") {
-        inst.speed = val;
-        inst.stop?.();
-        inst.start?.();
-      }
+    
+      const numVal = Number(val);
+      const parsedVal = isNaN(numVal) ? val : numVal;
+      if (inst instanceof SandboxMod || typeof inst.config === "function") inst.config({ [key]: parsedVal });
+      else inst[key] = parsedVal;
       return;
     }
     if (typeof value === "string") {

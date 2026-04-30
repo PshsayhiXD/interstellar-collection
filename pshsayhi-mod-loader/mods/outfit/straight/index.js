@@ -2,28 +2,40 @@ const api = require("@interstellar/StellarAPI");
 
 class StraightMod {
   constructor() {
-    this.index = 0;
+    this.speed = 16;
+    this.smoothEnabled = true;
+    this.smoothSpeed = 0.002;
+    this.smoothWave = 0.8;
+    this.smoothIntensity = 127;
+    this.smoothBase = 128;
     this.appearance = {};
     this.colorParts = [
+      "color_hair",
+      "color_skin",
       "color_body",
       "color_legs",
       "color_feet",
-      "color_hair",
-      "color_skin",
     ];
-    this.interval = null;
-    this.speed = 10;
+    this.rafId = null;
+    this.running = false;
+    this.lastTick = 0;
   }
 
-  next() {
-    this.index = (this.index + 1) % this.colorParts.length;
-    const p = this.colorParts[this.index];
+  getColor(now, index) {
+    const phase = now * this.smoothSpeed + index * this.smoothWave;
+    const raw = Math.round(Math.sin(phase) * this.smoothIntensity + this.smoothBase);
+    const value = Math.max(0, Math.min(255, raw));
+    return (value << 16) | (value << 8) | value;
+  }
 
-    const time = Date.now() / 25;
-    const intensity = Math.round(Math.sin(0.3 * time) * 127 + 128);
-    const color = (intensity << 16) | (intensity << 8) | intensity;
-
-    this.appearance[p] = color;
+  tick(now) {
+    if (!this.smoothEnabled) return;
+    if (now - this.lastTick < this.speed) return;
+    this.lastTick = now;
+    for (let i = 0; i < this.colorParts.length; i += 1) {
+      const part = this.colorParts[i];
+      this.appearance[part] = this.getColor(now, i);
+    }
     api.default.sendPacket({
       type: 7,
       outfit: {
@@ -35,17 +47,20 @@ class StraightMod {
 
   start() {
     this.stop();
-    this.interval = setInterval(() => {
-      if (typeof Interstellar === 'undefined' || !Interstellar.ingame) return;
-      this.next();
-    }, this.speed);
+    this.running = true;
+    this.lastTick = 0;
+    const loop = (now) => {
+      if (!this.running) return;
+      if (typeof Interstellar !== "undefined" && Interstellar.ingame) this.tick(now);
+      this.rafId = requestAnimationFrame(loop);
+    };
+    this.rafId = requestAnimationFrame(loop);
   }
 
   stop() {
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
-    }
+    this.running = false;
+    if (this.rafId !== null) cancelAnimationFrame(this.rafId);
+    this.rafId = null;
   }
 }
 

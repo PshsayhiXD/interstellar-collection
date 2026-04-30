@@ -1,17 +1,52 @@
 const api = require("@interstellar/StellarAPI");
 
-class SuperGayMod {
+class superGay {
   constructor() {
-    this.appearance = {};
+    this.ms = 10;
+    this.waveSpeed = 0.3;
+    this.step = 0.8;
+    this.hueSpeed = 0.0008;
+    this.saturation = 1;
+    this.value = 1;
+    this.amplitude = 0.18;
     this.colorParts = [
-      "color_body",
-      "color_legs",
-      "color_feet",
       "color_hair",
       "color_skin",
+      "color_body",
+      "color_legs",
+      "color_feet"
     ];
-    this.interval = null;
-    this.speed = 85;
+    this.intervalId = null;
+  }
+
+  start() {
+    this.stop();
+    this.intervalId = setInterval(() => {
+      const t = Date.now() * 0.001 * this.waveSpeed * 6.28318;
+      const baseHue = (Date.now() * this.hueSpeed) % 1;
+      const appearance = {};
+      for (let i = 0; i < this.colorParts.length; i++) {
+        const wave = Math.sin(t + i * this.step) * 0.5 + 0.5;
+        const hue = (baseHue + wave * this.amplitude) % 1;
+        appearance[this.colorParts[i]] = this.hsvToRgb(
+          hue,
+          this.saturation,
+          this.value
+        );
+      }
+      api.default.sendPacket({
+        type: 7,
+        outfit: {
+          style_hair: 1,
+          ...appearance
+        }
+      });
+    }, this.ms);
+  }
+
+  stop() {
+    if (this.intervalId) clearInterval(this.intervalId);
+    this.intervalId = null;
   }
 
   hsvToRgb(h, s, v) {
@@ -27,38 +62,12 @@ class SuperGayMod {
     else if (i % 6 === 3) [r, g, b] = [p, q, v];
     else if (i % 6 === 4) [r, g, b] = [t, p, v];
     else [r, g, b] = [v, p, q];
-    const R = Math.round(r * 255);
-    const G = Math.round(g * 255);
-    const B = Math.round(b * 255);
-    return (R << 16) | (G << 8) | B;
-  }
-
-  start() {
-    this.stop();
-    let partIndex = 0;
-    let hue = 0;
-    this.interval = setInterval(() => {
-      if (typeof Interstellar === 'undefined' || !Interstellar.ingame) return;
-      const p = this.colorParts[partIndex];
-      this.appearance[p] = this.hsvToRgb(hue, 0.35, 1);
-      partIndex = (partIndex + 1) % this.colorParts.length;
-      hue = (hue + 0.05) % 1;
-      api.default.sendPacket({
-        type: 7,
-        outfit: {
-          style_hair: 1,
-          ...this.appearance,
-        },
-      });
-    }, this.speed);
-  }
-
-  stop() {
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
-    }
+    return (
+      (Math.round(r * 255) << 16) |
+      (Math.round(g * 255) << 8) |
+      Math.round(b * 255)
+    );
   }
 }
 
-exports.default = SuperGayMod;
+exports.default = superGay;

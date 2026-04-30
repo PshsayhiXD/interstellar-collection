@@ -108,11 +108,13 @@ class LoaderUI {
   }
 
   _injectStyles() {
-    if (document.querySelector("#ML-styles")) return;
-    const s = document.createElement("style");
-    s.id = "ML-styles";
+    let s = document.querySelector("#ML-styles");
+    if (!s) {
+      s = document.createElement("style");
+      s.id = "ML-styles";
+      document.head.appendChild(s);
+    }
     s.innerHTML = STYLES;
-    document.head.appendChild(s);
   }
 
   _showToast(kind, msg, duration = 3500) {
@@ -179,6 +181,12 @@ class LoaderUI {
             if (active) this.onModeChange(sec.key, { id: m.id, active: true });
           });
         }
+        sec.mods.forEach((m) => {
+          if (!m?.id || m.id === "off" || !this.configState[m.id]) return;
+          for (const [key, val] of Object.entries(this.configState[m.id])) {
+            this.onModeChange("config", { id: m.id, key, value: val });
+          }
+        });
       });
     } catch (e) {}
   }
@@ -1076,7 +1084,7 @@ class LoaderUI {
         if (input.type === "checkbox") {
           val = input.checked;
         } else if (input.type === "range") {
-          val = parseInt(input.value, 10);
+          val = parseFloat(input.value);
           const display = this.container.querySelector(
             `.p-config-value[data-mod="${mod}"][data-cfg="${cfg}"]`,
           );
