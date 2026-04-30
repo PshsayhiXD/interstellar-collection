@@ -3,12 +3,8 @@
   "version": "1.0.0",
   "description": "Custom mod loader",
   "scripts": {
-    "zip":                  "node build.js",
-    "pshsayhi-mod-loader":  "node build.js pshsayhi-mod-loader",
-    "oneko":                "node build.js oneko",
-    "straight":             "node build.js straight",
-    "super-gay":            "node build.js \"super gay\"",
-    "release":              "node release.js"
+    "zip": "node build.js",
+    "release": "node release.js"
   },
   "devDependencies": {
     "archiver": "^7.0.1"
