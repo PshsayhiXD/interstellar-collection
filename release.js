@@ -1,3 +1,7 @@
+// This file is a NODEJS script that can be run using:
+// node release.js <modSlug> <version> [reason] [--dry-run]
+// Example bash command:
+// npm run release pshsayhi-mod-loader 1.2.0 "Improve outfit mods, and fixed config was rounding value"
 const { execSync } = require("child_process");
 const readline = require("readline");
 
