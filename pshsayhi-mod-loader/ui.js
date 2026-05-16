@@ -668,6 +668,7 @@ class LoaderUI {
     this.container.classList.toggle("p-collapsed", this.isCollapsed);
     this._syncCollapseChevron();
     this._scheduleUiSave();
+    this._updateDevPreview?.();
   }
 
   _applySearchFilter() {
@@ -687,6 +688,7 @@ class LoaderUI {
     const input = this.container.querySelector("#p-search");
     this._applySearchFilter();
     this._scheduleUiSave();
+    this._updateDevPreview?.();
   }
 
   _refreshConfigInputs() {
@@ -1603,43 +1605,80 @@ class LoaderUI {
     };
 
     const defaultCode = `\
+/* example outfit script */
 const api = require("@interstellar/StellarAPI");
 
-class StraightMod {
+class superGay {
   constructor() {
-    this.index = 0;
-    this.appearance = {};
+    this.ms = 10;
+    this.waveSpeed = 0.3;
+    this.step = 0.8;
+    this.hueSpeed = 0.0008;
+    this.saturation = 1;
+    this.value = 1;
+    this.amplitude = 0.18;
     this.colorParts = [
-      "color_body","color_legs","color_feet","color_hair","color_skin",
+      "color_hair",
+      "color_skin",
+      "color_body",
+      "color_legs",
+      "color_feet"
     ];
-    this.interval = null;
-    this.speed = 10;
-  }
-
-  next() {
-    this.index = (this.index + 1) % this.colorParts.length;
-    const p = this.colorParts[this.index];
-    const time = Date.now() / 25;
-    const intensity = Math.round(Math.sin(0.3 * time) * 127 + 128);
-    const color = (intensity << 16) | (intensity << 8) | intensity;
-    this.appearance[p] = color;
-    api.default.sendPacket({ type: 7, outfit: { style_hair: 1, ...this.appearance } });
+    this.intervalId = null;
   }
 
   start() {
     this.stop();
-    this.interval = setInterval(() => {
-      if (typeof Interstellar === "undefined" || !Interstellar.ingame) return;
-      this.next();
-    }, this.speed);
+    this.intervalId = setInterval(() => {
+      const t = Date.now() * 0.001 * this.waveSpeed * 6.28318;
+      const baseHue = (Date.now() * this.hueSpeed) % 1;
+      const appearance = {};
+      for (let i = 0; i < this.colorParts.length; i++) {
+        const wave = Math.sin(t + i * this.step) * 0.5 + 0.5;
+        const hue = (baseHue + wave * this.amplitude) % 1;
+        appearance[this.colorParts[i]] = this.hsvToRgb(
+          hue,
+          this.saturation,
+          this.value
+        );
+      }
+      api.default.sendPacket({
+        type: 7,
+        outfit: {
+          style_hair: 1,
+          ...appearance
+        }
+      });
+    }, this.ms);
   }
 
   stop() {
-    if (this.interval) { clearInterval(this.interval); this.interval = null; }
+    if (this.intervalId) clearInterval(this.intervalId);
+    this.intervalId = null;
+  }
+
+  hsvToRgb(h, s, v) {
+    const i = Math.floor(h * 6);
+    const f = h * 6 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f * s);
+    const t = v * (1 - (1 - f) * s);
+    let r, g, b;
+    if (i % 6 === 0) [r, g, b] = [v, t, p];
+    else if (i % 6 === 1) [r, g, b] = [q, v, p];
+    else if (i % 6 === 2) [r, g, b] = [p, v, t];
+    else if (i % 6 === 3) [r, g, b] = [p, q, v];
+    else if (i % 6 === 4) [r, g, b] = [t, p, v];
+    else [r, g, b] = [v, p, q];
+    return (
+      (Math.round(r * 255) << 16) |
+      (Math.round(g * 255) << 8) |
+      Math.round(b * 255)
+    );
   }
 }
 
-exports.default = StraightMod;`;
+exports.default = superGay;`;
     tabsData.get(MAIN_TAB).content = defaultCode;
     codeArea.value = defaultCode;
 
@@ -1655,6 +1694,14 @@ exports.default = StraightMod;`;
 
     const updatePreview = () => {
       clearTimers(); moduleCache.clear(); clearLog(); showError("");
+
+      const devPane = this.container.querySelector('.p-pane[data-sec-key="dev"]');
+      const previewDetails = devPane?.querySelector('.p-dev-section');
+      const isVisible = !this.isCollapsed && 
+                        devPane?.classList.contains('p-pane-active') && 
+                        (!previewDetails || previewDetails.open);
+      if (!isVisible) return;
+
       const code = codeArea.value;
       const fromPath = activeTab === MAIN_TAB ? "" : activeTab;
       const g = globalThis;
@@ -1735,6 +1782,13 @@ exports.default = StraightMod;`;
       }
     });
 
+    const devPane = this.container.querySelector('.p-pane[data-sec-key="dev"]');
+    const previewDetails = devPane?.querySelector('.p-dev-section');
+    if (previewDetails) {
+      previewDetails.addEventListener('toggle', () => updatePreview());
+    }
+
+    this._updateDevPreview = updatePreview;
     renderTabBar(); updateSaveBtn(); updatePreview();
   }
 
