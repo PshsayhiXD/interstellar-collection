@@ -2,9 +2,7 @@
 /**
  * Usage
  *   npm run zip -- <folder-name>
- *   npm run pshsayhi-mod-loader
- *   npm run oneko
- *   npm run straight
+ *   npm run zip -- pshsayhi-mod-loader
  *   ... etc
  */
 
