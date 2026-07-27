@@ -107,7 +107,6 @@ As an alternative to `metadata.js`, you can use `interstellar.json`. The fields 
 ```
 
 All other fields (`type`, `section`, `icon`, `config`, etc.) are written the same as in `metadata.js`.
-```
 
 ### Required fields
 
