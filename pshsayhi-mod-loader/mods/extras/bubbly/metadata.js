@@ -5,7 +5,7 @@ exports.default = {
   author: "pshsayhi",
   version: "1.0.0",
   homeUrl: "https://github.com/PshsayhiXD/interstellar-collection",
-  icon: "fa-tint"
+  icon: "fa-tint",
   entryPoint: "index.js",
   type: "toggle",
   section: "extras",
