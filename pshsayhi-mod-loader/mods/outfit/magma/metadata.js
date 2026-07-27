@@ -20,7 +20,7 @@ exports.default = {
       default: true
     },
     {
-      key: "speed",
+      key: "tickInterval",
       label: "Update Delay",
       group: "Performance",
       type: "range",

@@ -1002,6 +1002,7 @@ class LoaderUI {
       .querySelector("#p-close-btn")
       .addEventListener("click", () => {
         this.container.style.display = "none";
+        this._scheduleUiSave();
       });
 
     this.container
@@ -1054,8 +1055,14 @@ class LoaderUI {
       if (e.key !== "Escape" || !this.container) return;
       if (this.container.style.display === "none") return;
       this.container.style.display = "none";
+      this._scheduleUiSave();
     };
     document.addEventListener("keydown", this._onDocKeydown);
+
+    window.addEventListener("beforeunload", () => {
+      this._saveUiStateNow().catch(() => {});
+      this._saveModStateNow().catch(() => {});
+    });
 
     this.container.querySelectorAll(".p-mod-header").forEach((btn) => {
       btn.addEventListener("click", (e) => {
