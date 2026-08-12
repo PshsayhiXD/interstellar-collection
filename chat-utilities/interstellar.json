@@ -1,0 +1,8 @@
+{
+    "name": "Chat utilities",
+    "id": "pshsayhi.chatutilities",
+    "creator": "pshsayhi",
+    "description": "chat QOL",
+    "scripting": "commonjs",
+    "entrypoint": "./loader.js"
+}
