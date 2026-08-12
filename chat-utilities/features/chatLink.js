@@ -1,30 +1,22 @@
-function chatLink() {
-  const chatContent = document.querySelector("#chat-content");
-  if (!chatContent) return;
+const { getChatElements, getMessageTextSpan, markInitialized, injectStyle, onNewMessages, copyToClipboard } = require("../chatCore");
 
+function chatLink() {
+  const els = getChatElements();
+  if (!els) return;
+  const { chatContent } = els;
+  if (markInitialized(chatContent, "link")) return;
   const styleId = "chat-autolink-style";
   const URL_RE = /\b(?:https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
-
-  const getMessageTextSpan = messageNode => {
-    for (const child of messageNode.children) {
-      if (child.tagName === "SPAN" && child.querySelector(":scope > b")) return child;
-    }
-    return null;
-  };
-
   const linkifyTextNode = textNode => {
     const text = textNode.nodeValue;
     URL_RE.lastIndex = 0;
     if (!URL_RE.test(text)) return;
     URL_RE.lastIndex = 0;
-
     const frag = document.createDocumentFragment();
     let lastIndex = 0;
     let match;
     while ((match = URL_RE.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-      }
+      if (match.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
       const raw = match[0];
       const href = raw.startsWith("www.") ? `https://${raw}` : raw;
       const a = document.createElement("a");
@@ -33,15 +25,16 @@ function chatLink() {
       a.target = "_blank";
       a.rel = "noopener noreferrer";
       a.className = "chat-autolink";
+      a.addEventListener("contextmenu", event => {
+        event.preventDefault();
+        copyToClipboard(href);
+      });
       frag.appendChild(a);
       lastIndex = match.index + raw.length;
     }
-    if (lastIndex < text.length) {
-      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
-    }
+    if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
     textNode.replaceWith(frag);
   };
-
   const linkifyMessage = messageNode => {
     if (messageNode.dataset.autolinked === "true") return;
     const span = getMessageTextSpan(messageNode);
@@ -51,35 +44,19 @@ function chatLink() {
       .filter(node => node.nodeType === Node.TEXT_NODE)
       .forEach(linkifyTextNode);
   };
-
-  if (!document.querySelector(`#${styleId}`)) {
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
-      a.chat-autolink {
-        color: #6cf;
-        text-decoration: underline;
-        word-break: break-all;
-      }
-      a.chat-autolink:hover {
-        color: #9df;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  chatContent.querySelectorAll(".chat-message").forEach(linkifyMessage);
-
-  const observer = new MutationObserver(mutations => {
-    for (const mutation of mutations) {
-      for (const node of mutation.addedNodes) {
-        if (node.nodeType === Node.ELEMENT_NODE && node.matches(".chat-message")) {
-          linkifyMessage(node);
-        }
-      }
+  injectStyle(
+    styleId,
+    `a.chat-autolink {
+      color: #6cf;
+      text-decoration: underline;
+      word-break: break-all;
     }
-  });
-  observer.observe(chatContent, { childList: true });
+    a.chat-autolink:hover {
+      color: #9df;
+    }`
+  );
+  chatContent.querySelectorAll(".chat-message").forEach(linkifyMessage);
+  onNewMessages(chatContent, messages => messages.forEach(linkifyMessage));
 }
 
 exports.chatLink = chatLink;

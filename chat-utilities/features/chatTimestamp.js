@@ -1,23 +1,29 @@
-function chatTimestamp() {
-  const chatContent = document.querySelector("#chat-content");
-  if (!chatContent) return;
-  const styleId = "chat-timestamp-style";
+const { getChatElements, markInitialized, injectStyle, onNewMessages, copyToClipboard } = require("../chatCore");
 
+function chatTimestamp() {
+  const els = getChatElements();
+  if (!els) return;
+  const { chatContent } = els;
+  if (markInitialized(chatContent, "timestamp")) return;
+  const styleId = "chat-timestamp-style";
+  let hoveredMessage = null;
+  let timer = null;
   const formatExact = date =>
     date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-
   const formatRelative = date => {
     const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
     if (seconds < 1) return "now";
     if (seconds < 60) return `${seconds}s ago`;
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
+    const remainingSeconds = seconds % 60;
+    if (minutes < 60) return `${minutes}m ${remainingSeconds}s ago`;
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
+    const remainingMinutes = minutes % 60;
+    if (hours < 24) return `${hours}h ${remainingMinutes}m ago`;
     const days = Math.floor(hours / 24);
-    return `${days}d ago`;
+    const remainingHours = hours % 24;
+    return `${days}d ${remainingHours}h ago`;
   };
-
   const stampMessage = node => {
     if (node.querySelector(":scope > .chat-timestamp")) return;
     const el = document.createElement("span");
@@ -25,61 +31,75 @@ function chatTimestamp() {
     el.dataset.time = String(Date.now());
     node.appendChild(el);
   };
-
   const updateBadge = messageNode => {
-    const badge = messageNode.querySelector(":scope > .chat-timestamp");
+    const badge = messageNode?.querySelector(":scope > .chat-timestamp");
     if (!badge) return;
     const time = new Date(Number(badge.dataset.time));
-    badge.textContent = `${formatRelative(time)} · ${formatExact(time)}`;
+    badge.textContent = ` · ${formatRelative(time)} · ${formatExact(time)}`;
   };
-
-  if (!document.querySelector(`#${styleId}`)) {
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
-      .chat-message {
-        position: relative;
+  const startTimer = messageNode => {
+    if (hoveredMessage === messageNode) return;
+    if (timer) clearInterval(timer);
+    hoveredMessage = messageNode;
+    updateBadge(messageNode);
+    timer = setInterval(() => {
+      if (!hoveredMessage?.isConnected) {
+        clearInterval(timer);
+        timer = null;
+        hoveredMessage = null;
+        return;
       }
-      .chat-timestamp {
-        position: absolute;
-        bottom: 2px;
-        right: 15%;
-        padding: 1px 5px;
-        border-radius: 3px;
-        background: rgba(0, 0, 0, 0.6);
-        color: #ccc;
-        font-size: 11px;
-        line-height: 1.4;
-        white-space: nowrap;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.15s ease;
-      }
-      .chat-message:hover .chat-timestamp {
-        opacity: 1;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
+      updateBadge(hoveredMessage);
+    }, 1000);
+  };
+  const stopTimer = messageNode => {
+    if (hoveredMessage !== messageNode) return;
+    if (timer) clearInterval(timer);
+    timer = null;
+    hoveredMessage = null;
+  };
+  injectStyle(
+    styleId,
+    `.chat-timestamp {
+      display: none;
+      margin-left: 4px;
+      color: #999;
+      font-size: 10px;
+      font-weight: normal;
+      line-height: 1;
+      white-space: nowrap;
+      opacity: 0.7;
+      vertical-align: baseline;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: pointer;
+    }
+    .chat-message:hover .chat-timestamp {
+      display: inline;
+    }`
+  );
   chatContent.querySelectorAll(".chat-message").forEach(stampMessage);
-  chatContent.addEventListener("mouseover", event => {
+  chatContent.addEventListener("pointerover", event => {
     const messageNode = event.target.closest(".chat-message");
-    if (messageNode && chatContent.contains(messageNode)) {
-      updateBadge(messageNode);
-    }
+    if (!messageNode || !chatContent.contains(messageNode)) return;
+    if (messageNode.contains(event.relatedTarget)) return;
+    startTimer(messageNode);
   });
-
-  const observer = new MutationObserver(mutations => {
-    for (const mutation of mutations) {
-      for (const node of mutation.addedNodes) {
-        if (node.nodeType === Node.ELEMENT_NODE && node.matches(".chat-message")) {
-          stampMessage(node);
-        }
-      }
-    }
+  chatContent.addEventListener("pointerout", event => {
+    const messageNode = event.target.closest(".chat-message");
+    if (!messageNode || !chatContent.contains(messageNode)) return;
+    if (messageNode.contains(event.relatedTarget)) return;
+    stopTimer(messageNode);
   });
-  observer.observe(chatContent, { childList: true });
+  chatContent.addEventListener("dblclick", event => {
+    const timestampNode = event.target.closest(".chat-timestamp");
+    if (!timestampNode || !chatContent.contains(timestampNode)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const time = new Date(Number(timestampNode.dataset.time));
+    copyToClipboard(formatExact(time));
+  });
+  onNewMessages(chatContent, messages => messages.forEach(stampMessage));
 }
 
 exports.chatTimestamp = chatTimestamp;

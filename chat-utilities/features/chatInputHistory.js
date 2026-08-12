@@ -1,18 +1,18 @@
+const { markInitialized } = require("../chatCore");
+
 function chatInputHistory() {
   const input = document.querySelector("#chat-input");
   if (!input) return;
-
+  if (markInitialized(input, "inputHistory")) return;
   const MAX_HISTORY = 50;
   const history = [];
   let index = null;
   let draft = "";
-
   const setValue = value => {
     input.value = value;
     const end = value.length;
     input.setSelectionRange(end, end);
   };
-
   const pushHistory = value => {
     const trimmed = (value || "").trim();
     if (!trimmed) return;
@@ -22,17 +22,14 @@ function chatInputHistory() {
     index = null;
     draft = "";
   };
-
   const eventManager = window.StellarExports?.["@interstellar/StellarEventManager"]?.default;
   const events = window.StellarExports?.["@interstellar/InterstellarEvents"];
   const sendEvent = events?.ChatMessageSendEvent;
-
   if (eventManager && sendEvent) {
     eventManager.addEventListener(sendEvent, event => {
       if (event && !event.canceled) pushHistory(event.msg);
     });
   }
-
   input.addEventListener("keydown", event => {
     if (event.key === "ArrowUp") {
       if (history.length === 0) return;
