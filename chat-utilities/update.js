@@ -1,4 +1,4 @@
-const _VERSION = "1.0.1";
+const _VERSION = "1.0.2";
 
 async function checkForUpdate(modSlug, repoUser = "PshsayhiXD", repoName = "interstellar-collection") {
   try {

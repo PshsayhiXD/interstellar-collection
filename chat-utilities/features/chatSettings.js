@@ -19,7 +19,9 @@ function chatSettings() {
   button.className = "chat-settings-button";
   button.type = "button";
   button.title = "Chat settings";
-  button.textContent = "⚙";
+  const icon = document.createElement("i");
+  icon.className = "fas fa-cog";
+  button.append(icon);
   const menu = document.createElement("div");
   menu.className = "chat-settings-menu";
   const title = document.createElement("div");
@@ -28,6 +30,9 @@ function chatSettings() {
   const warning = document.createElement("input");
   warning.type = "checkbox";
   warning.checked = true;
+  const search = document.createElement("input");
+  search.type = "checkbox";
+  search.checked = localStorage.getItem("chatSearchVisible") !== "false";
   const createOption = (input, label) => {
     const option = document.createElement("label");
     option.className = "chat-settings-option";
@@ -38,7 +43,8 @@ function chatSettings() {
     title,
     createOption(messages, "Hide Messages"),
     createOption(bubbles, "Hide Bubbles"),
-    createOption(warning, "Show Warning")
+    createOption(warning, "Show Warning"),
+    createOption(search, "Show Search")
   );
   settings.append(button, menu);
   footer.remove();
@@ -51,17 +57,38 @@ function chatSettings() {
       if (isWarningMessage(message)) message.classList.toggle("chat-warning-hidden", !warning.checked);
     });
   };
+  const updateSearch = () => {
+    const searchBar = document.querySelector("#chat-search-filter-bar");
+    if (!searchBar) return;
+    searchBar.style.display = search.checked && !chatBox.classList.contains("closed") ? "" : "none";
+  };
   updateWarnings([...chatContent.querySelectorAll(".chat-message")]);
+  updateSearch();
   onNewMessages(chatContent, updateWarnings);
   warning.addEventListener("change", () => {
     updateWarnings([...chatContent.querySelectorAll(".chat-message")]);
   });
+  search.addEventListener("change", () => {
+    localStorage.setItem("chatSearchVisible", String(search.checked));
+    updateSearch();
+  });
   button.addEventListener("click", event => {
     event.stopPropagation();
     settings.classList.toggle("is-open");
+    icon.classList.remove("is-spinning");
+    void icon.offsetWidth;
+    icon.classList.add("is-spinning");
+  });
+  icon.addEventListener("animationend", () => {
+    icon.classList.remove("is-spinning");
   });
   document.addEventListener("click", event => {
     if (!settings.contains(event.target)) settings.classList.remove("is-open");
+  });
+  const searchObserver = new MutationObserver(updateSearch);
+  searchObserver.observe(chatBox, {
+    childList: true,
+    subtree: true
   });
   injectStyle(
     "chat-settings-style",
@@ -96,6 +123,20 @@ function chatSettings() {
     }
     .chat-settings-button:hover {
       background: rgba(255, 255, 255, 0.08);
+    }
+    .chat-settings-button i {
+      display: inline-block;
+    }
+    .chat-settings-button i.is-spinning {
+      animation: chat-settings-spin 0.4s ease;
+    }
+    @keyframes chat-settings-spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(180deg);
+      }
     }
     .chat-settings-menu {
       position: absolute;
@@ -133,6 +174,9 @@ function chatSettings() {
       margin: 0;
     }
     .chat-warning-hidden {
+      display: none !important;
+    }
+    .chat-search-filter-hidden {
       display: none !important;
     }`
   );

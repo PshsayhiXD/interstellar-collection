@@ -3,7 +3,6 @@ const checkForUpdate = require("./update").default;
 
 class ChatUtilities extends script.default {
   async load() {
-    console.log("[ChatUtilities] load()");
     const { chatResize } = require("./features/chatResize");
     const { chatTimestamp } = require("./features/chatTimestamp");
     const { userChatHighlight } = require("./features/chatHighlight");
@@ -14,7 +13,8 @@ class ChatUtilities extends script.default {
     const { chatInviteLinkResolver } = require("./features/chatInviteLinkResolver");
     const { chatSettings } = require("./features/chatSettings");
     const { chatVersion } = require("./features/chatVersion");
-    console.log("[ChatUtilities] features loaded");
+    const { chatFormatting } = require("./features/chatFormatting");
+    const { chatClear } = require("./features/chatClear");
     chatResize();
     chatTimestamp();
     userChatHighlight();
@@ -25,6 +25,8 @@ class ChatUtilities extends script.default {
     await chatInviteLinkResolver();
     chatSettings();
     chatVersion();
+    chatFormatting();
+    chatClear()
     await checkForUpdate("chat-utilities");
   }
 }

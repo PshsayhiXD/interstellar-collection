@@ -8,8 +8,17 @@ function chatTimestamp() {
   const styleId = "chat-timestamp-style";
   let hoveredMessage = null;
   let timer = null;
+  const modes = ["relative", "exact", "both"];
+  let mode = 2;
   const formatExact = date =>
-    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    `${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })} ${formatOffset(date)}`;
+  const formatOffset = date => {
+    const offset = -date.getTimezoneOffset();
+    const sign = offset >= 0 ? "+" : "-";
+    const hours = Math.floor(Math.abs(offset) / 60);
+    const minutes = Math.abs(offset) % 60;
+    return `UTC${sign}${hours}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
+  };
   const formatRelative = date => {
     const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
     if (seconds < 1) return "now";
@@ -29,13 +38,27 @@ function chatTimestamp() {
     const el = document.createElement("span");
     el.className = "chat-timestamp";
     el.dataset.time = String(Date.now());
+    el.dataset.mode = String(mode);
     node.appendChild(el);
   };
   const updateBadge = messageNode => {
     const badge = messageNode?.querySelector(":scope > .chat-timestamp");
     if (!badge) return;
     const time = new Date(Number(badge.dataset.time));
-    badge.textContent = ` · ${formatRelative(time)} · ${formatExact(time)}`;
+    const relative = formatRelative(time);
+    const exact = formatExact(time);
+    badge.textContent = mode === 0
+      ? ` · ${relative}`
+      : mode === 1
+        ? ` · ${exact}`
+        : ` · ${relative} · ${exact}`;
+    badge.dataset.mode = String(mode);
+  };
+  const updateAllBadges = () => {
+    chatContent.querySelectorAll(":scope > .chat-message > .chat-timestamp").forEach(badge => {
+      const messageNode = badge.parentElement;
+      if (messageNode) updateBadge(messageNode);
+    });
   };
   const startTimer = messageNode => {
     if (hoveredMessage === messageNode) return;
@@ -49,7 +72,7 @@ function chatTimestamp() {
         hoveredMessage = null;
         return;
       }
-      updateBadge(hoveredMessage);
+      if (mode === 0 || mode === 2) updateBadge(hoveredMessage);
     }, 1000);
   };
   const stopTimer = messageNode => {
@@ -91,7 +114,15 @@ function chatTimestamp() {
     if (messageNode.contains(event.relatedTarget)) return;
     stopTimer(messageNode);
   });
-  chatContent.addEventListener("dblclick", event => {
+  chatContent.addEventListener("click", event => {
+    const timestampNode = event.target.closest(".chat-timestamp");
+    if (!timestampNode || !chatContent.contains(timestampNode)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    mode = (mode + 1) % modes.length;
+    updateAllBadges();
+  });
+  chatContent.addEventListener("contextmenu", event => {
     const timestampNode = event.target.closest(".chat-timestamp");
     if (!timestampNode || !chatContent.contains(timestampNode)) return;
     event.preventDefault();

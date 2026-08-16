@@ -8,6 +8,10 @@ function chatInputHistory() {
   const history = [];
   let index = null;
   let draft = "";
+  const resetHistory = () => {
+    index = null;
+    draft = "";
+  };
   const setValue = value => {
     input.value = value;
     const end = value.length;
@@ -15,12 +19,11 @@ function chatInputHistory() {
   };
   const pushHistory = value => {
     const trimmed = (value || "").trim();
+    resetHistory();
     if (!trimmed) return;
     if (history[history.length - 1] === trimmed) return;
     history.push(trimmed);
     if (history.length > MAX_HISTORY) history.shift();
-    index = null;
-    draft = "";
   };
   const eventManager = window.StellarExports?.["@interstellar/StellarEventManager"]?.default;
   const events = window.StellarExports?.["@interstellar/InterstellarEvents"];
@@ -48,8 +51,8 @@ function chatInputHistory() {
         index++;
         setValue(history[index]);
       } else {
-        index = null;
-        setValue(draft);
+        resetHistory();
+        setValue("");
       }
     }
   });
